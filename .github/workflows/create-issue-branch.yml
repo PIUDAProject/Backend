@@ -2,7 +2,7 @@ name: Create Issue Branch
 
 on:
   issues:
-    types: [assigned]
+    types: [opened, labeled, assigned]
   pull_request:
     types: [closed]
 

@@ -139,7 +139,7 @@ public class GlobalExceptionHandler {
 		log.error("[DataIntegrity] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
 		return ResponseEntity
 			.status(HttpStatus.CONFLICT)
-			.body(ErrorResponse.of(ErrorCode.BAD_REQUEST, "데이터 무결성 오류가 발생했습니다.", request));
+			.body(ErrorResponse.of(ErrorCode.DATA_CONFLICT, "데이터 무결성 오류가 발생했습니다.", request));
 	}
 
 	/** 그 외 DB 접근 예외 */

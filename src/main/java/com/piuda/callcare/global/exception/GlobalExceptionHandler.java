@@ -1,0 +1,165 @@
+package com.piuda.callcare.global.exception;
+
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import com.piuda.callcare.global.common.response.ErrorResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+	@ExceptionHandler(CallCareException.class)
+	public ResponseEntity<ErrorResponse> handleCallCareException(
+		CallCareException e, HttpServletRequest request
+	) {
+		log.warn("[CallCareException] {} {} | code={} | message={}",
+			request.getMethod(), request.getRequestURI(),
+			e.getErrorCode().getCode(), e.getMessage());
+
+		return ResponseEntity
+			.status(e.getErrorCode().getHttpStatus())
+			.body(ErrorResponse.of(e.getErrorCode(), e.getMessage(), request));
+	}
+
+	/** @Valid, @Validated 실패 — 첫 번째 필드 오류 메시지를 포함해서 반환 */
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(
+		MethodArgumentNotValidException e, HttpServletRequest request
+	) {
+		String detail = e.getBindingResult().getFieldErrors().stream()
+			.map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+			.findFirst()
+			.orElse(ErrorCode.INVALID_PARAMETER.getMessage());
+
+		log.warn("[Validation] {} {} | {}", request.getMethod(), request.getRequestURI(), detail);
+
+		return ResponseEntity
+			.status(HttpStatus.BAD_REQUEST)
+			.body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, detail, request));
+	}
+
+	/** @Validated + @PathVariable / @RequestParam 제약 위반 */
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ResponseEntity<ErrorResponse> handleConstraintViolation(
+		ConstraintViolationException e, HttpServletRequest request
+	) {
+		log.warn("[ConstraintViolation] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.BAD_REQUEST)
+			.body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, request));
+	}
+
+	/** 필수 @RequestParam 누락 */
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ErrorResponse> handleMissingParam(
+		MissingServletRequestParameterException e, HttpServletRequest request
+	) {
+		log.warn("[MissingParam] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.BAD_REQUEST)
+			.body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, request));
+	}
+
+	/** @PathVariable / @RequestParam 타입 불일치 */
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ErrorResponse> handleTypeMismatch(
+		MethodArgumentTypeMismatchException e, HttpServletRequest request
+	) {
+		log.warn("[TypeMismatch] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.BAD_REQUEST)
+			.body(ErrorResponse.of(ErrorCode.INVALID_PARAMETER, request));
+	}
+
+	/** JSON 파싱 / 역직렬화 실패 */
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ErrorResponse> handleNotReadable(
+		HttpMessageNotReadableException e, HttpServletRequest request
+	) {
+		log.warn("[NotReadable] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.BAD_REQUEST)
+			.body(ErrorResponse.of(ErrorCode.BAD_REQUEST, request));
+	}
+
+	/** 지원하지 않는 HTTP 메서드 */
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+		HttpRequestMethodNotSupportedException e, HttpServletRequest request
+	) {
+		log.warn("[MethodNotSupported] {} {}", request.getMethod(), request.getRequestURI());
+		return ResponseEntity
+			.status(HttpStatus.METHOD_NOT_ALLOWED)
+			.body(ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED, request));
+	}
+
+	/** 지원하지 않는 Content-Type */
+	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+	public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(
+		HttpMediaTypeNotSupportedException e, HttpServletRequest request
+	) {
+		log.warn("[MediaTypeNotSupported] {} {}", request.getMethod(), request.getRequestURI());
+		return ResponseEntity
+			.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+			.body(ErrorResponse.of(ErrorCode.UNSUPPORTED_MEDIA_TYPE, request));
+	}
+
+	/** 인증 실패 (토큰 없음 / 만료 등) */
+	@ExceptionHandler(AuthenticationException.class)
+	public ResponseEntity<ErrorResponse> handleAuthentication(
+		AuthenticationException e, HttpServletRequest request
+	) {
+		log.warn("[Unauthorized] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.UNAUTHORIZED)
+			.body(ErrorResponse.of(ErrorCode.UNAUTHORIZED, request));
+	}
+
+	/** Unique 제약 등 데이터 무결성 위반 */
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<ErrorResponse> handleDataIntegrity(
+		DataIntegrityViolationException e, HttpServletRequest request
+	) {
+		log.error("[DataIntegrity] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		return ResponseEntity
+			.status(HttpStatus.CONFLICT)
+			.body(ErrorResponse.of(ErrorCode.BAD_REQUEST, "데이터 무결성 오류가 발생했습니다.", request));
+	}
+
+	/** 그 외 DB 접근 예외 */
+	@ExceptionHandler(DataAccessException.class)
+	public ResponseEntity<ErrorResponse> handleDataAccess(
+		DataAccessException e, HttpServletRequest request
+	) {
+		log.error("[DataAccess] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage(), e);
+		return ResponseEntity
+			.status(HttpStatus.INTERNAL_SERVER_ERROR)
+			.body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, request));
+	}
+
+	@ExceptionHandler(Exception.class)
+	public ResponseEntity<ErrorResponse> handleException(
+		Exception e, HttpServletRequest request
+	) {
+		log.error("[UnhandledException] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage(), e);
+		return ResponseEntity
+			.status(HttpStatus.INTERNAL_SERVER_ERROR)
+			.body(ErrorResponse.of(ErrorCode.INTERNAL_SERVER_ERROR, request));
+	}
+}

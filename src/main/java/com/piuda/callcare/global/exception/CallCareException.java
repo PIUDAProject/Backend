@@ -13,7 +13,7 @@ public class CallCareException extends RuntimeException {
 	}
 
 	public CallCareException(ErrorCode errorCode, String customMessage) {
-		super(customMessage);
+		super(customMessage != null ? customMessage : errorCode.getMessage());
 		this.errorCode = errorCode;
 	}
 }

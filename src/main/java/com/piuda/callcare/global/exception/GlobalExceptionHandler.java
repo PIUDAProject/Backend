@@ -136,7 +136,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponse> handleDataIntegrity(
 		DataIntegrityViolationException e, HttpServletRequest request
 	) {
-		log.error("[DataIntegrity] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+		log.warn("[DataIntegrity] {} {} | {}", request.getMethod(), request.getRequestURI(), e.getMessage());
 		return ResponseEntity
 			.status(HttpStatus.CONFLICT)
 			.body(ErrorResponse.of(ErrorCode.DATA_CONFLICT, "데이터 무결성 오류가 발생했습니다.", request));

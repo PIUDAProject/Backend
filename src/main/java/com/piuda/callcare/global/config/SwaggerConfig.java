@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -24,8 +25,6 @@ public class SwaggerConfig {
 
 	@Bean
 	public OpenAPI openAPI() {
-		String profile = env.getActiveProfiles().length > 0
-			? env.getActiveProfiles()[0] : "local";
 
 		SecurityScheme accessTokenAuth = new SecurityScheme()
 			.type(SecurityScheme.Type.HTTP)
@@ -38,7 +37,7 @@ public class SwaggerConfig {
 			.addList("accessTokenAuth");
 
 		Server server = new Server();
-		if ("prod".equals(profile)) {
+		if (env.acceptsProfiles(Profiles.of("prod"))) {
 			server.setUrl("http://3.37.93.185");
 			server.setDescription("운영 서버");
 		} else {

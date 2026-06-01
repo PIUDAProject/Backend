@@ -48,7 +48,7 @@ public class SwaggerConfig {
 		return new OpenAPI()
 			.info(new Info()
 				.title("Paprika Care API Documentation")
-				.description("파프리카케어 프로젝트 API 명세서입니다.")
+				.description("콜케어 프로젝트 API 명세서입니다.")
 				.version("v1.0.0"))
 			.components(new Components()
 				.addSecuritySchemes("accessTokenAuth", accessTokenAuth))

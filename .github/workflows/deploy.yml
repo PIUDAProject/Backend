@@ -4,6 +4,13 @@ on:
   push:
     branches: [ "develop" ]
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -35,7 +42,9 @@ jobs:
 
       - name: Build and push Docker image
         run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/callcare:${{ github.sha }} .
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/callcare:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/callcare:${{ github.sha }}
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/callcare:latest
 
       - name: Create deployment package
@@ -97,4 +106,4 @@ jobs:
             echo "${{ secrets.ENV_FILE }}" > .env
 
             chmod +x deploy.sh
-            ./deploy.sh ${{ secrets.DOCKERHUB_USERNAME }}/callcare latest
+            ./deploy.sh ${{ secrets.DOCKERHUB_USERNAME }}/callcare ${{ github.sha }}

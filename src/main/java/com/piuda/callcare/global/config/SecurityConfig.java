@@ -17,6 +17,7 @@ public class SecurityConfig {
 			.csrf(AbstractHttpConfigurer::disable)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/test/**").permitAll()   // 로컬 테스트용
+				.requestMatchers("/actuator/health").permitAll() // 헬스체크 엔드포인트 허용
 				.anyRequest().authenticated()
 			);
 		return http.build();

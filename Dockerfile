@@ -17,6 +17,9 @@ COPY --from=builder /app/build/libs/*.jar app.jar
 ENV TZ=Asia/Seoul
 ENV SPRING_PROFILES_ACTIVE=prod
 
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+USER appuser
+
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

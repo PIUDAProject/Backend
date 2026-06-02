@@ -38,7 +38,7 @@ public class SwaggerConfig {
 
 		Server server = new Server();
 		if (env.acceptsProfiles(Profiles.of("prod"))) {
-			server.setUrl("http://3.37.93.185");
+			server.setUrl("https://callcare.shop");
 			server.setDescription("운영 서버");
 		} else {
 			server.setUrl("http://localhost:8080");

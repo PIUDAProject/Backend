@@ -15,11 +15,12 @@ public class CorsConfig implements WebMvcConfigurer {
 
 	private static final List<String> ALLOWED_ORIGINS = List.of(
 		"http://3.37.93.185",
+		"http://callcare.shop",
+		"https://callcare.shop",
+		"https://www.callcare.shop",
+		"https://frontend-eight-self-96.vercel.app",
 		"http://localhost:3000",
 		"http://localhost:8080"
-		// 도메인 구매 후 추가
-		// "https://도메인.com",
-		// "https://www.도메인.com"
 	);
 
 	@Override

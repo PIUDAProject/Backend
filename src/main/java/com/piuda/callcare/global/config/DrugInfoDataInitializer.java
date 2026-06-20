@@ -13,7 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -39,21 +41,27 @@ public class DrugInfoDataInitializer implements CommandLineRunner {
         }
 
         List<DrugInfo> drugInfoList = new ArrayList<>();
+        Set<String> seenItemSeqs = new HashSet<>();
+
         for (JsonNode node : rootNode) {
+            String itemSeq = getText(node, "itemSeq");
+            if (itemSeq == null || seenItemSeqs.contains(itemSeq)) continue;
+            seenItemSeqs.add(itemSeq);
+
             drugInfoList.add(DrugInfo.builder()
-                    .itemSeq(getText(node, "itemSeq"))
-                    .itemName(getText(node, "itemName"))
-                    .entpName(getText(node, "entpName"))
-                    .efcyQesitm(getText(node, "efcy"))
-                    .useMethodQesitm(getText(node, "useMethod"))
-                    .atpnQesitm(getText(node, "atpnQesitm"))
-                    .seQesitm(getText(node, "sideEffect"))
-                    .intrcQesitm(getText(node, "intrcQesitm"))
-                    .depositMethodQesitm(getText(node, "depositMethodQesitm"))
-                    .itemImage(getText(node, "itemImage"))
-                    .prductType(getText(node, "prductType"))
-                    .spcltyPblc(getText(node, "spcltyPblc"))
-                    .build());
+                .itemSeq(itemSeq)
+                .itemName(getText(node, "itemName"))
+                .entpName(getText(node, "entpName"))
+                .efcyQesitm(getText(node, "efcy"))
+                .useMethodQesitm(getText(node, "useMethod"))
+                .atpnQesitm(getText(node, "atpnQesitm"))
+                .seQesitm(getText(node, "sideEffect"))
+                .intrcQesitm(getText(node, "intrcQesitm"))
+                .depositMethodQesitm(getText(node, "depositMethodQesitm"))
+                .itemImage(getText(node, "itemImage"))
+                .prductType(getText(node, "prductType"))
+                .spcltyPblc(getText(node, "spcltyPblc"))
+                .build());
         }
 
         drugInfoRepository.saveAll(drugInfoList);

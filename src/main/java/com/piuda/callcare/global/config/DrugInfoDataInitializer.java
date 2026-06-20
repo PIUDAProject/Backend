@@ -33,8 +33,10 @@ public class DrugInfoDataInitializer implements CommandLineRunner {
 
         log.info("DrugInfo 초기 데이터 로딩 시작");
 
-        InputStream inputStream = new ClassPathResource("data/drug_merged.json").getInputStream();
-        JsonNode rootNode = objectMapper.readTree(inputStream);
+        JsonNode rootNode;
+        try (InputStream inputStream = new ClassPathResource("data/drug_merged.json").getInputStream()) {
+            rootNode = objectMapper.readTree(inputStream);
+        }
 
         List<DrugInfo> drugInfoList = new ArrayList<>();
         for (JsonNode node : rootNode) {

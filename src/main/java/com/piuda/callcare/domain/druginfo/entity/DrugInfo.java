@@ -9,7 +9,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "drug_info")
+@Table(name = "drug_info", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_drug_info_item_seq", columnNames = "item_seq")
+})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class DrugInfo extends BaseEntity {
@@ -19,7 +21,7 @@ public class DrugInfo extends BaseEntity {
     @Column(name = "drug_info_id")
     private Long id;
 
-    @Column(name = "item_seq")
+    @Column(name = "item_seq", unique = true)
     private String itemSeq; // 품목기준코드
 
     @Column(name = "item_name")

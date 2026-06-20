@@ -36,6 +36,18 @@ public class OcrResult {
     @Column(name = "raw_text", columnDefinition = "TEXT")
     private String rawText; // OCR로 추출된 원본 텍스트
 
+    @Column(name = "parsed_drug_name")
+    private String parsedDrugName; // OCR 결과에서 추출된 약 이름
+
+    @Column(name = "parsed_dosage_per_time")
+    private String parsedDosagePerTime; // OCR 결과에서 추출된 1회 복용량 (예: "1정", "5ml")
+
+    @Column(name = "parsed_times_per_day")
+    private Integer parsedTimesPerDay; // OCR 결과에서 추출된 1일 복용 횟수 (예: 3회)
+
+    @Column(name = "parsed_total_days")
+    private Integer parsedTotalDays; // OCR 결과에서 추출된 총 복용 일수 (예: 7일)
+
     @Column(name = "is_processed", nullable = false)
     private Boolean isProcessed; // OCR 결과가 처리되었는지 여부 (예: 약 정보 추출 완료 여부)
 
@@ -54,5 +66,12 @@ public class OcrResult {
 
     public void markAsProcessed() {
         this.isProcessed = true;
+    }
+
+    public void saveParsedData(String drugName, String dosagePerTime, Integer timesPerDay, Integer totalDays) {
+        this.parsedDrugName = drugName;
+        this.parsedDosagePerTime = dosagePerTime;
+        this.parsedTimesPerDay = timesPerDay;
+        this.parsedTotalDays = totalDays;
     }
 }

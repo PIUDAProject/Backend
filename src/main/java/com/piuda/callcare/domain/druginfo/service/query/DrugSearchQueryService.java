@@ -5,6 +5,8 @@ import com.piuda.callcare.domain.druginfo.dto.response.DrugAutofillResponse;
 import com.piuda.callcare.domain.druginfo.dto.response.DrugSearchResponse;
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
 import com.piuda.callcare.domain.druginfo.repository.DrugSearchRepository;
+import com.piuda.callcare.global.exception.CallCareException;
+import com.piuda.callcare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,10 @@ public class DrugSearchQueryService {
 
     // Elasticsearch로 약품명 자동완성 검색 (match_phrase_prefix, 최대 20건)
     public List<DrugSearchResponse> search(String keyword) {
-        return drugSearchRepository.searchByItemName(keyword, PageRequest.of(0, 20))
+        if (keyword == null || keyword.isBlank()) {
+            throw new CallCareException(ErrorCode.INVALID_PARAMETER);
+        }
+        return drugSearchRepository.searchByItemName(keyword.trim(), PageRequest.of(0, 20))
                 .stream()
                 .map(drugInfoConverter::toSearchResponse)
                 .toList();

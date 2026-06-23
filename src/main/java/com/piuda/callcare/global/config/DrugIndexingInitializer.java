@@ -24,20 +24,30 @@ public class DrugIndexingInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (drugSearchRepository.count() > 0) {
-            log.info("ES DrugInfo 인덱스 이미 존재 - 색인 생략");
-            return;
+        try {
+            long dbCount = drugInfoRepository.count();
+            long esCount = drugSearchRepository.count();
+
+            // DB와 ES 건수가 일치하면 색인 완료로 간주
+            if (esCount > 0 && esCount == dbCount) {
+                log.info("ES DrugInfo 인덱스 최신 상태 - 색인 생략 ({}건)", esCount);
+                return;
+            }
+
+            log.info("ES DrugInfo 색인 시작 (DB: {}건, ES: {}건)", dbCount, esCount);
+
+            List<DrugDocument> documents = drugInfoRepository.findAll()
+                    .stream()
+                    .filter(drug -> drug.getItemSeq() != null)
+                    .map(drugInfoConverter::toDocument)
+                    .toList();
+
+            drugSearchRepository.saveAll(documents);
+            log.info("ES DrugInfo 색인 완료: {}건", documents.size());
+
+        } catch (Exception e) {
+            // ES 장애 시 앱 기동은 정상 진행, 검색 기능만 비정상
+            log.error("ES DrugInfo 색인 실패 - 검색 기능이 제한될 수 있습니다: {}", e.getMessage());
         }
-
-        log.info("ES DrugInfo 색인 시작");
-
-        List<DrugDocument> documents = drugInfoRepository.findAll()
-                .stream()
-                .filter(drug -> drug.getItemSeq() != null)
-                .map(drugInfoConverter::toDocument)
-                .toList();
-
-        drugSearchRepository.saveAll(documents);
-        log.info("ES DrugInfo 색인 완료: {}건", documents.size());
     }
 }

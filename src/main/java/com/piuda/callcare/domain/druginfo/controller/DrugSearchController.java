@@ -7,8 +7,10 @@ import com.piuda.callcare.global.common.response.ApiResponse;
 import com.piuda.callcare.global.common.response.ResponseUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @Tag(name = "Drug Search", description = "약품 검색 API (Elasticsearch 기반)")
+@Validated
 @RestController
 @RequestMapping("/api/search/drugs")
 @RequiredArgsConstructor
@@ -28,7 +31,7 @@ public class DrugSearchController {
     @Operation(summary = "약 이름 자동완성 검색", description = "Elasticsearch를 이용해 약 이름 자동완성 검색 결과를 반환합니다. 최대 20건.")
     @GetMapping
     public ResponseEntity<ApiResponse<List<DrugSearchResponse>>> search(
-            @RequestParam String keyword
+            @RequestParam @NotBlank(message = "검색 키워드를 입력해주세요.") String keyword
     ) {
         return ResponseUtils.ok(drugSearchQueryService.search(keyword));
     }

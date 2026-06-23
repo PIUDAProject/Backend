@@ -23,8 +23,11 @@ public class DrugInfoQueryService {
 
     // 약품명 키워드로 DB 검색 (최대 20건, 이름 오름차순)
     public List<DrugSearchResponse> searchByKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new CallCareException(ErrorCode.INVALID_PARAMETER);
+        }
         List<DrugInfo> drugInfoList = drugInfoRepository
-                .findByItemNameContainingIgnoreCaseOrderByItemNameAsc(keyword, PageRequest.of(0, 20));
+                .findByItemNameContainingIgnoreCaseOrderByItemNameAsc(keyword.trim(), PageRequest.of(0, 20));
         return drugInfoList.stream()
                 .map(drugInfoConverter::toSearchResponse)
                 .toList();

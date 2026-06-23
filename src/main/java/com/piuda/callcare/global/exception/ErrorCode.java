@@ -26,7 +26,10 @@ public enum ErrorCode {
 
 	// USER
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-001", "사용자를 찾을 수 없습니다."),
-	DUPLICATED_EMAIL(HttpStatus.CONFLICT, "USER-002", "이미 사용 중인 이메일입니다.");
+	DUPLICATED_EMAIL(HttpStatus.CONFLICT, "USER-002", "이미 사용 중인 이메일입니다."),
+
+	// DRUG
+	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다.");
 
 	private final HttpStatus httpStatus;
 	private final String code;

@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  elasticsearch:
+    image: elasticsearch:8.13.0
+    container_name: callcare-elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   app-blue:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
     container_name: callcare-blue
@@ -10,6 +28,9 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
 
   app-green:
@@ -21,4 +42,10 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  es-data:

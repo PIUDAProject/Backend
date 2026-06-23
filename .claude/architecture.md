@@ -67,11 +67,13 @@ public class XxxCommandService {
 ### Controller 패턴
 
 ```java
+@Tag(name = "Xxx", description = "xxx 관련 API")
 @RestController
 @RequestMapping("/api/xxx")
 @RequiredArgsConstructor
 public class XxxController {
 
+    @Operation(summary = "xxx 단건 조회", description = "id로 xxx를 조회합니다.")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<XxxResponse>> getXxx(
         @AuthenticationPrincipal Long userId,
@@ -79,6 +81,40 @@ public class XxxController {
     ) {
         return ResponseEntity.ok(ResponseUtils.ok(xxxQueryService.getXxx(id)));
     }
+}
+```
+
+### Swagger 컨벤션
+
+- 컨트롤러 클래스: `@Tag(name = "도메인명", description = "한 줄 설명")`
+- 각 메서드: `@Operation(summary = "짧은 요약", description = "상세 설명 (필요 시)")`
+- description이 summary와 동일하면 생략 가능
+- Response DTO: 클래스에 `@Schema(description = "응답 설명")`, 각 필드에 `@Schema(description = "필드 설명")`
+
+```java
+@Schema(description = "xxx 응답")
+public record XxxResponse(
+    @Schema(description = "ID") Long id,
+    @Schema(description = "이름") String name
+) {}
+```
+
+### Converter 패턴
+
+- 위치: `domain/{도메인}/converter/XxxConverter.java`
+- `@Component`로 Spring Bean 등록, 서비스에서 주입
+- 메서드마다 변환 방향을 주석으로 명시: `// EntityA → DtoB (용도)`
+- 여러 오버로드가 있을 경우 각각 주석으로 구분
+
+```java
+@Component
+public class XxxConverter {
+
+    // XxxEntity → XxxResponse (단건 조회 응답용)
+    public XxxResponse toResponse(Xxx xxx) { ... }
+
+    // XxxEntity → XxxDocument (ES 색인용)
+    public XxxDocument toDocument(Xxx xxx) { ... }
 }
 ```
 

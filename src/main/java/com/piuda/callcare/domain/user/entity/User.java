@@ -41,4 +41,12 @@ public class User extends BaseEntity {
 		this.providerId = providerId;
 
 	}
+
+	public static User createSocialUser(String email, Provider provider, String providerId) {
+		return User.builder()
+			.email(email)
+			.provider(provider)
+			.providerId(providerId)
+			.build();
+	}
 }

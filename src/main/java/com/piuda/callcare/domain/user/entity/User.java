@@ -10,7 +10,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(
+	name = "users",
+	uniqueConstraints = @UniqueConstraint(
+		name = "uk_users_provider_provider_id",
+		columnNames = {"provider", "provider_id"}
+	)
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class User extends BaseEntity {

@@ -61,8 +61,9 @@ public class JwtTokenProvider {
 
 	public boolean validateToken(String token) {
 		try {
-			parseClaims(token);
-			return true;
+			Claims claims = parseClaims(token);
+			// 리프레시 토큰은 access token 용도로 통과시키지 않음
+			return !"refresh".equals(claims.get("type"));
 		} catch (Exception e) {
 			return false;
 		}

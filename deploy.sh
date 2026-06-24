@@ -35,6 +35,7 @@ docker stop callcare-$NEXT 2>/dev/null || true
 docker rm callcare-$NEXT 2>/dev/null || true
 docker run -d \
     --name callcare-$NEXT \
+    --network app_default \
     --env-file /home/ubuntu/app/.env \
     -e SPRING_PROFILES_ACTIVE=prod \
     -p $NEXT_PORT:8080 \

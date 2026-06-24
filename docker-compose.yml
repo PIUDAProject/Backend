@@ -34,6 +34,20 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7.2
+    container_name: callcare-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mysql-data:
   es-data:
+  redis-data:

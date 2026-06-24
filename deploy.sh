@@ -45,13 +45,13 @@ docker run -d \
 # 헬스체크
 echo ">>> 헬스체크 시작 ($NEXT_PORT)"
 STATUS="000"
-for i in {1..15}; do
+for i in {1..30}; do
     STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$NEXT_PORT/actuator/health 2>/dev/null || echo "000")
     if [ "$STATUS" == "200" ]; then
         echo ">>> 헬스체크 성공"
         break
     fi
-    echo ">>> 헬스체크 대기 중... ($i/15)"
+    echo ">>> 헬스체크 대기 중... ($i/30)"
     sleep 5
 done
 

@@ -17,6 +17,7 @@ services:
       timeout: 5s
       retries: 5
 
+
   elasticsearch:
     image: elasticsearch:8.13.0
     container_name: callcare-elasticsearch

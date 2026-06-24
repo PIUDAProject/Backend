@@ -10,7 +10,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "users")
+@Table(
+	name = "users",
+	uniqueConstraints = @UniqueConstraint(
+		name = "uk_users_provider_provider_id",
+		columnNames = {"provider", "provider_id"}
+	)
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class User extends BaseEntity {
@@ -40,5 +46,13 @@ public class User extends BaseEntity {
 		this.provider = provider;
 		this.providerId = providerId;
 
+	}
+
+	public static User createSocialUser(String email, Provider provider, String providerId) {
+		return User.builder()
+			.email(email)
+			.provider(provider)
+			.providerId(providerId)
+			.build();
 	}
 }

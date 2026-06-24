@@ -23,6 +23,7 @@ public enum ErrorCode {
 	FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH-002", "접근 권한이 없습니다."),
 	INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH-003", "유효하지 않은 토큰입니다."),
 	TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH-004", "토큰이 만료되었습니다."),
+	INVALID_SOCIAL_USER_INFO(HttpStatus.BAD_REQUEST, "AUTH-005", "소셜 로그인 사용자 정보를 가져올 수 없습니다."),
 
 	// USER
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-001", "사용자를 찾을 수 없습니다."),

@@ -5,6 +5,10 @@ spring:
     name: callcare
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 server:
   port: 8080
@@ -17,3 +21,19 @@ management:
   endpoint:
     health:
       show-details: never
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration-ms: 3600000
+  refresh-expiration-ms: 1209600000
+  issuer: "callcare"
+
+kakao:
+  client-id: ${KAKAO_CLIENT_ID}
+  client-secret: ${KAKAO_CLIENT_SECRET}
+  redirect-uri: ${KAKAO_REDIRECT_URI}
+
+naver:
+  client-id: ${NAVER_CLIENT_ID}
+  client-secret: ${NAVER_CLIENT_SECRET}
+  redirect-uri: ${NAVER_REDIRECT_URI}

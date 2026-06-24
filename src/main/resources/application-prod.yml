@@ -20,3 +20,16 @@ spring:
 
   elasticsearch:
     uris: ${PROD_ES_URI}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      redis:
+        enabled: false
+      elasticsearch:
+        enabled: false

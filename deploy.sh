@@ -26,6 +26,7 @@ fi
 echo ">>> 현재: $PREV ($PREV_PORT) → 배포 대상: $NEXT ($NEXT_PORT)"
 
 # 새 이미지 pull
+
 echo ">>> 이미지 pull: $DOCKER_IMAGE:$IMAGE_TAG"
 docker pull $DOCKER_IMAGE:$IMAGE_TAG
 

@@ -47,7 +47,7 @@ public class DrugIndexingInitializer implements CommandLineRunner {
 
         } catch (Exception e) {
             // ES 장애 시 앱 기동은 정상 진행, 검색 기능만 비정상
-            log.error("ES DrugInfo 색인 실패 - 검색 기능이 제한될 수 있습니다: {}", e.getMessage());
+            log.error("ES DrugInfo 색인 실패 - 검색 기능이 제한될 수 있습니다.", e);
         }
     }
 }

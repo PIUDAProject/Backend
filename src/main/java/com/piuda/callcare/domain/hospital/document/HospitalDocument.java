@@ -1,4 +1,4 @@
-package com.piuda.callcare.domain.druginfo.document;
+package com.piuda.callcare.domain.hospital.document;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,28 +9,22 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
-@Document(indexName = "drug_info")
+@Document(indexName = "hospital")
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class DrugDocument {
+public class HospitalDocument {
 
     @Id
-    private String itemSeq; // 품목기준코드
+    private String id;
 
     @Field(type = FieldType.Text)
-    private String itemName; // 약품명
+    private String name;
 
     @Field(type = FieldType.Keyword)
-    private String entpName; // 제조사명
+    private String address;
 
     @Field(type = FieldType.Keyword)
-    private String prductType; // 약 종류
-
-    @Field(type = FieldType.Keyword)
-    private String spcltyPblc; // 전문/일반 의약품 구분
-
-    @Field(type = FieldType.Keyword)
-    private String itemImage; // 약 이미지 URL
+    private String phoneNumber;
 }

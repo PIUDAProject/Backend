@@ -35,6 +35,8 @@ public class HospitalIndexingInitializer implements CommandLineRunner {
 
             log.info("ES Hospital 색인 시작 (DB: {}건, ES: {}건)", dbCount, esCount);
 
+            hospitalSearchRepository.deleteAll();
+
             List<HospitalDocument> documents = hospitalRepository.findAll()
                     .stream()
                     .map(hospitalConverter::toDocument)
@@ -44,7 +46,7 @@ public class HospitalIndexingInitializer implements CommandLineRunner {
             log.info("ES Hospital 색인 완료: {}건", documents.size());
 
         } catch (Exception e) {
-            log.error("ES Hospital 색인 실패 - 검색 기능이 제한될 수 있습니다: {}", e.getMessage());
+            log.error("ES Hospital 색인 실패 - 검색 기능이 제한될 수 있습니다.", e);
         }
     }
 }

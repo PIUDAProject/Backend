@@ -17,9 +17,8 @@ services:
       timeout: 5s
       retries: 5
 
-
   elasticsearch:
-    image: elasticsearch:8.13.0
+    image: elasticsearch:8.18.0
     container_name: callcare-elasticsearch
     ports:
       - "9200:9200"

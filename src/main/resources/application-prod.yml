@@ -33,3 +33,5 @@ management:
         enabled: false
       elasticsearch:
         enabled: false
+      reactiveelasticsearch:
+        enabled: false

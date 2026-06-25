@@ -1,7 +1,9 @@
 package com.piuda.callcare.domain.hospital.document;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
@@ -10,6 +12,8 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 @Document(indexName = "hospital")
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class HospitalDocument {
 
     @Id

@@ -28,6 +28,7 @@ public class SecurityConfig {
 				.requestMatchers("/actuator/health").permitAll()
 				.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/drugs/**", "/api/search/drugs/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/hospitals/search").permitAll()
 				.anyRequest().authenticated()
 			);
 		return http.build();

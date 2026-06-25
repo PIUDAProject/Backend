@@ -25,9 +25,11 @@ spring:
 management:
   endpoint:
     health:
-      redis:
-        enabled: false
-      elasticsearch:
-        enabled: false
-      reactiveelasticsearch:
-        enabled: false
+      show-details: never
+  health:
+    redis:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    reactiveelasticsearch:
+      enabled: false

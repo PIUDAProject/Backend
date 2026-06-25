@@ -29,9 +29,10 @@ management:
   endpoint:
     health:
       show-details: never
-      redis:
-        enabled: false
-      elasticsearch:
-        enabled: false
-      reactiveelasticsearch:
-        enabled: false
+  health:
+    redis:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    reactiveelasticsearch:
+      enabled: false

@@ -30,7 +30,10 @@ public enum ErrorCode {
 	DUPLICATED_EMAIL(HttpStatus.CONFLICT, "USER-002", "이미 사용 중인 이메일입니다."),
 
 	// DRUG
-	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다.");
+	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
+
+	// NOTIFICATION
+	UNSUPPORTED_MEAL_TIME(HttpStatus.BAD_REQUEST, "NOTI-001", "전화 알림을 지원하지 않는 식사 시간대입니다.");
 
 	private final HttpStatus httpStatus;
 	private final String code;

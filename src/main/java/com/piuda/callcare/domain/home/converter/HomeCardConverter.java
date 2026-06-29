@@ -11,7 +11,7 @@ import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 public class HomeCardConverter {
 
     // MedicationSchedule → MedicationCardResponse (완료 상태는 서비스에서 합성해 주입)
-    public MedicationCardResponse toCard(MedicationSchedule schedule, boolean isTaken, CompletedStatus completedStatus) {
+    public MedicationCardResponse toCard(MedicationSchedule schedule, Boolean isTaken, CompletedStatus completedStatus) {
         Medication m = schedule.getMedication();
         return new MedicationCardResponse(
                 m.getId(),

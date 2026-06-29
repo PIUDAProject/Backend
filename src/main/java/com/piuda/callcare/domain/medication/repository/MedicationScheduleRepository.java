@@ -19,7 +19,7 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
               AND m.isActive = true
               AND m.startDate <= :date
               AND m.endDate >= :date
-            ORDER BY ms.mealTime
+            ORDER BY ms.mealTime, m.hospital.id NULLS LAST, m.id
             """)
     List<MedicationSchedule> findActiveSchedulesForHomeCards(
             @Param("seniorId") Long seniorId,

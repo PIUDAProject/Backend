@@ -100,7 +100,9 @@ public class HomeCardQueryService {
                     CompletedStatus completedStatus = (mode == HomeCardMode.PAST)
                             ? (taken ? CompletedStatus.COMPLETED : CompletedStatus.INCOMPLETE)
                             : null;
-                    return homeCardConverter.toCard(schedule, taken, completedStatus);
+                    // 과거 모드는 completedStatus로 표시하므로 isTaken은 응답에서 생략(null)
+                    Boolean isTaken = (mode == HomeCardMode.PAST) ? null : taken;
+                    return homeCardConverter.toCard(schedule, isTaken, completedStatus);
                 })
                 .toList();
 

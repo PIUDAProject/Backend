@@ -17,7 +17,7 @@ public record MedicationCardResponse(
         @Schema(description = "약 이미지 URL") String imageUrl,
         @Schema(description = "1회 복용량") String dosagePerTime,
         @Schema(description = "1일 복용 횟수") Integer timesPerDay,
-        @Schema(description = "복용 완료 여부 (오늘/미래)") boolean isTaken,
+        @Schema(description = "복용 완료 여부 (오늘/미래, 과거는 null)") Boolean isTaken,
         @Schema(description = "복용 완료 상태 (과거 전용)") CompletedStatus completedStatus
 ) {
 }

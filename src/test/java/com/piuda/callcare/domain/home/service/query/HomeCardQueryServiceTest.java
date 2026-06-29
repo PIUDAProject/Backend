@@ -74,8 +74,8 @@ class HomeCardQueryServiceTest {
         // 아침 약10 복용 완료(약11 미완료), 점심 약10 복용 완료
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
                 .willReturn(List.of(
-                        log(med10, MealTime.BREAKFAST, true),
-                        log(med10, MealTime.LUNCH, true)
+                        log(med10, MealTime.BREAKFAST, true, today),
+                        log(med10, MealTime.LUNCH, true, today)
                 ));
 
         // When
@@ -133,7 +133,7 @@ class HomeCardQueryServiceTest {
         given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, yesterday))
                 .willReturn(List.of(schedule(med10, MealTime.DINNER), schedule(med11, MealTime.DINNER)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, yesterday))
-                .willReturn(List.of(log(med10, MealTime.DINNER, true)));
+                .willReturn(List.of(log(med10, MealTime.DINNER, true, yesterday)));
 
         // When
         HomeCardResponse result = homeCardQueryService.getHomeCards(SENIOR_ID, yesterday);
@@ -208,12 +208,12 @@ class HomeCardQueryServiceTest {
         return MedicationSchedule.builder().medication(medication).mealTime(mealTime).build();
     }
 
-    private MedicationLog log(Medication medication, MealTime mealTime, boolean taken) {
+    private MedicationLog log(Medication medication, MealTime mealTime, boolean taken, LocalDate takenDate) {
         return MedicationLog.builder()
                 .medication(medication)
                 .mealTime(mealTime)
                 .isTaken(taken)
-                .takenDate(today)
+                .takenDate(takenDate)
                 .build();
     }
 }

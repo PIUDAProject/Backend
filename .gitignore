@@ -40,3 +40,9 @@ out/
 .env
 .env.*
 !.env.example
+
+### Claude 메모 (로컬 전용) ###
+docs/claude-notes/
+
+### 로컬 테스트용 시드 데이터 ###
+scripts/seed/

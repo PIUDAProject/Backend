@@ -35,6 +35,9 @@ public enum ErrorCode {
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
 
+	// OCR
+	OCR_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "OCR-001", "OCR API 호출에 실패했습니다."),
+
 	// NOTIFICATION
 	UNSUPPORTED_MEAL_TIME(HttpStatus.BAD_REQUEST, "NOTI-001", "전화 알림을 지원하지 않는 식사 시간대입니다.");
 

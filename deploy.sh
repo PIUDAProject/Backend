@@ -9,7 +9,8 @@ GREEN_PORT=8081
 NGINX_CONF="/etc/nginx/sites-available/default"
 LOG_DIR="/home/ubuntu/app/logs"
 
-mkdir -p $LOG_DIR
+mkdir -p "$LOG_DIR"
+find "$LOG_DIR" -name "fail_*.log" -mtime +7 -delete
 
 # 현재 실행 중인 컨테이너 확인
 CURRENT=$(docker ps --format '{{.Names}}' | grep -E 'callcare-(blue|green)' | head -1)
@@ -60,10 +61,9 @@ done
 
 if [ "$STATUS" != "200" ]; then
     echo ">>> 헬스체크 실패 — 로그 저장 후 롤백"
-    docker logs callcare-$NEXT > $LOG_DIR/fail_${NEXT}_$(date +%Y%m%d_%H%M%S).log 2>&1
+    docker logs "callcare-$NEXT" > "$LOG_DIR/fail_${NEXT}_$(date +%Y%m%d_%H%M%S).log" 2>&1
     docker stop callcare-$NEXT
     docker rm callcare-$NEXT
-    find $LOG_DIR -name "fail_*.log" -mtime +7 -delete
     exit 1
 fi
 

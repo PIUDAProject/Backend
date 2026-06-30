@@ -16,7 +16,7 @@ public class OcrParser {
         "\\*([가-힣a-zA-Z0-9]+(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))"
     );
     private static final Pattern DRUG_NAME_PATTERN = Pattern.compile(
-        "([가-힣a-zA-Z0-9]+(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))"
+        "([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))"
     );
 
     // "1일투여횟수2", "1일 투여 횟수 2", "1일 3회", "하루 2번" 등 실제 처방전 용어 우선
@@ -81,26 +81,13 @@ public class OcrParser {
         if (matcher.find()) {
             for (int i = 1; i <= matcher.groupCount(); i += 2) {
                 String amount = matcher.group(i);
-                String unit = (i + 1 <= matcher.groupCount()) ? matcher.group(i + 1) : null;
                 if (amount != null) {
-                    return amount + (unit != null ? unit : inferUnitOnly(text));
+                    String unit = (i + 1 <= matcher.groupCount()) ? matcher.group(i + 1) : null;
+                    return unit != null ? amount + unit : amount;
                 }
             }
         }
-        return inferDefaultDosage(text);
-    }
-
-    private String inferUnitOnly(String text) {
-        if (text.contains("정")) return "정";
-        if (text.contains("캡슐")) return "캡슐";
-        if (text.contains("시럽") || text.contains("액")) return "ml";
-        return "단위";
-    }
-
-    private String inferDefaultDosage(String text) {
-        if (text.contains("정") || text.contains("캡슐")) return "1정";
-        if (text.contains("시럽") || text.contains("액")) return "1ml";
-        return "1단위";
+        return null;
     }
 
     private Integer extractTotalDays(String text) {

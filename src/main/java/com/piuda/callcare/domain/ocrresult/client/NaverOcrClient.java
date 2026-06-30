@@ -14,6 +14,7 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -52,7 +53,7 @@ public class NaverOcrClient {
                             .with("file", imageResource))
                     .retrieve()
                     .bodyToMono(NaverOcrApiResponse.class)
-                    .block();
+                    .block(Duration.ofSeconds(35));
 
             return extractRawText(response);
 
@@ -75,11 +76,11 @@ public class NaverOcrClient {
 
     private String extractRawText(NaverOcrApiResponse response) {
         if (response == null || response.images() == null || response.images().isEmpty()) {
-            return "";
+            throw new CallCareException(ErrorCode.OCR_API_ERROR);
         }
         NaverOcrApiResponse.ImageResult image = response.images().get(0);
         if (!"SUCCESS".equals(image.inferResult()) || image.fields() == null) {
-            return "";
+            throw new CallCareException(ErrorCode.OCR_API_ERROR);
         }
         return image.fields().stream()
                 .map(field -> field.inferText() + (Boolean.TRUE.equals(field.lineBreak()) ? "\n" : " "))

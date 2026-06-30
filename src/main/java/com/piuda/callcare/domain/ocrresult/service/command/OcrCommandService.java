@@ -15,11 +15,9 @@ import com.piuda.callcare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
-@Transactional
 @Service
 @RequiredArgsConstructor
 public class OcrCommandService {

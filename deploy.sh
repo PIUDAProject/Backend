@@ -7,6 +7,9 @@ IMAGE_TAG=$2
 BLUE_PORT=8080
 GREEN_PORT=8081
 NGINX_CONF="/etc/nginx/sites-available/default"
+LOG_DIR="/home/ubuntu/app/logs"
+
+mkdir -p $LOG_DIR
 
 # 현재 실행 중인 컨테이너 확인
 CURRENT=$(docker ps --format '{{.Names}}' | grep -E 'callcare-(blue|green)' | head -1)
@@ -26,7 +29,6 @@ fi
 echo ">>> 현재: $PREV ($PREV_PORT) → 배포 대상: $NEXT ($NEXT_PORT)"
 
 # 새 이미지 pull
-
 echo ">>> 이미지 pull: $DOCKER_IMAGE:$IMAGE_TAG"
 docker pull $DOCKER_IMAGE:$IMAGE_TAG
 
@@ -57,9 +59,11 @@ for i in {1..15}; do
 done
 
 if [ "$STATUS" != "200" ]; then
-    echo ">>> 헬스체크 실패 — 롤백"
+    echo ">>> 헬스체크 실패 — 로그 저장 후 롤백"
+    docker logs callcare-$NEXT > $LOG_DIR/fail_${NEXT}_$(date +%Y%m%d_%H%M%S).log 2>&1
     docker stop callcare-$NEXT
     docker rm callcare-$NEXT
+    find $LOG_DIR -name "fail_*.log" -mtime +7 -delete
     exit 1
 fi
 

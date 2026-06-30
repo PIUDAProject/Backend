@@ -35,9 +35,6 @@ public enum ErrorCode {
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
 
-	// SENIOR
-	SENIOR_NOT_FOUND(HttpStatus.NOT_FOUND, "SENIOR-001", "부모님 정보를 찾을 수 없습니다."),
-
 	// OCR
 	OCR_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "OCR-001", "OCR API 호출에 실패했습니다."),
 

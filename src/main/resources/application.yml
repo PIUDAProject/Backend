@@ -37,3 +37,6 @@ naver:
   client-id: ${NAVER_CLIENT_ID}
   client-secret: ${NAVER_CLIENT_SECRET}
   redirect-uri: ${NAVER_REDIRECT_URI}
+  ocr:
+    invoke-url: ${NAVER_OCR_INVOKE_URL}
+    secret-key: ${NAVER_OCR_SECRET_KEY}

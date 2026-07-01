@@ -17,10 +17,11 @@ import com.piuda.callcare.domain.home.dto.response.HospitalGroupResponse;
 import com.piuda.callcare.domain.home.dto.response.MealGroupResponse;
 import com.piuda.callcare.domain.home.enums.CompletedStatus;
 import com.piuda.callcare.domain.home.enums.HomeCardMode;
+import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator;
+import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator.TakenKey;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.medication.repository.MedicationScheduleRepository;
-import com.piuda.callcare.domain.medicationlog.entity.MedicationLog;
 import com.piuda.callcare.domain.medicationlog.repository.MedicationLogRepository;
 import com.piuda.callcare.domain.senior.repository.SeniorRepository;
 import com.piuda.callcare.global.exception.CallCareException;
@@ -39,6 +40,7 @@ public class HomeCardQueryService {
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final MedicationLogRepository medicationLogRepository;
     private final HomeCardConverter homeCardConverter;
+    private final MealTimeCompletionCalculator completionCalculator;
 
     // 식사시간(ordinal) → 병원 단위로 약 카드를 그룹화하고, 날짜 모드에 맞춰 완료 상태를 합성한다
     public HomeCardResponse getHomeCards(Long seniorId, LocalDate date) {
@@ -81,7 +83,7 @@ public class HomeCardQueryService {
 
         // 한 시간대 모든 약이 복용 완료면 true (오늘 전용)
         boolean mealTimeCompleted = mode == HomeCardMode.TODAY
-                && schedules.stream().allMatch(s -> isTaken(s, takenKeys));
+                && completionCalculator.isMealTimeCompleted(schedules, takenKeys);
 
         return new MealGroupResponse(mealTime, mealTimeCompleted, hospitalGroups);
     }
@@ -96,7 +98,7 @@ public class HomeCardQueryService {
 
         var medications = group.stream()
                 .map(schedule -> {
-                    boolean taken = isTaken(schedule, takenKeys);
+                    boolean taken = completionCalculator.isTaken(schedule, takenKeys);
                     CompletedStatus completedStatus = (mode == HomeCardMode.PAST)
                             ? (taken ? CompletedStatus.COMPLETED : CompletedStatus.INCOMPLETE)
                             : null;
@@ -109,10 +111,6 @@ public class HomeCardQueryService {
         return new HospitalGroupResponse(hospitalId, hospitalName, medications);
     }
 
-    private boolean isTaken(MedicationSchedule schedule, Set<TakenKey> takenKeys) {
-        return takenKeys.contains(new TakenKey(schedule.getMedication().getId(), schedule.getMealTime()));
-    }
-
     private Long hospitalIdOf(MedicationSchedule schedule) {
         return schedule.getMedication().getHospital() == null
                 ? null
@@ -120,13 +118,7 @@ public class HomeCardQueryService {
     }
 
     private Set<TakenKey> loadTakenKeys(Long seniorId, LocalDate date) {
-        return medicationLogRepository.findBySenior_IdAndTakenDate(seniorId, date).stream()
-                .filter(MedicationLog::getIsTaken)
-                .map(log -> new TakenKey(log.getMedication().getId(), log.getMealTime()))
-                .collect(Collectors.toSet());
-    }
-
-    // 로그 합성 조회 키: (약 ID, 식사시간)
-    private record TakenKey(Long medicationId, MealTime mealTime) {
+        return completionCalculator.toTakenKeys(
+                medicationLogRepository.findBySenior_IdAndTakenDate(seniorId, date));
     }
 }

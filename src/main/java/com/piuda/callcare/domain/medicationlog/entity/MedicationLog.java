@@ -14,7 +14,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "medication_log")
+@Table(
+        name = "medication_log",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_medication_log_med_date_meal",
+                columnNames = {"medication_id", "taken_date", "meal_time"}
+        )
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class MedicationLog {
@@ -63,5 +69,11 @@ public class MedicationLog {
     public void markAsTaken() {
         this.isTaken = true;
         this.takenAt = LocalDateTime.now();
+    }
+
+    // 복용 여부를 명시적으로 갱신 (체크 시 taken_at=now, 해제 시 null). 해제도 행을 유지한다.
+    public void updateIsTaken(boolean isTaken) {
+        this.isTaken = isTaken;
+        this.takenAt = isTaken ? LocalDateTime.now() : null;
     }
 }

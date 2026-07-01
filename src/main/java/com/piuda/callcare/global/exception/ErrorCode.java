@@ -35,6 +35,11 @@ public enum ErrorCode {
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
 
+	// MEDICATION
+	MEDICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "MEDICATION-001", "약 정보를 찾을 수 없습니다."),
+	MEDICATION_SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "MEDICATION-002", "해당 시간대의 복약 스케줄이 없습니다."),
+	MEDICATION_LOG_TOGGLE_NOT_TODAY(HttpStatus.BAD_REQUEST, "MEDICATION-003", "오늘 날짜의 복약만 체크할 수 있습니다."),
+
 	// NOTIFICATION
 	UNSUPPORTED_MEAL_TIME(HttpStatus.BAD_REQUEST, "NOTI-001", "전화 알림을 지원하지 않는 식사 시간대입니다.");
 

@@ -24,6 +24,7 @@ import com.piuda.callcare.domain.home.dto.response.HomeCardResponse;
 import com.piuda.callcare.domain.home.dto.response.MealGroupResponse;
 import com.piuda.callcare.domain.home.enums.CompletedStatus;
 import com.piuda.callcare.domain.home.enums.HomeCardMode;
+import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator;
 import com.piuda.callcare.domain.hospital.entity.Hospital;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
@@ -53,6 +54,9 @@ class HomeCardQueryServiceTest {
     // 변환은 실제 동작을 검증하기 위해 spy 대신 실제 구현을 주입
     @org.mockito.Spy
     private HomeCardConverter homeCardConverter = new HomeCardConverter();
+    // 완료 판정은 순수 로직이라 실제 구현을 주입
+    @org.mockito.Spy
+    private MealTimeCompletionCalculator completionCalculator = new MealTimeCompletionCalculator();
 
     private final LocalDate today = LocalDate.now();
 

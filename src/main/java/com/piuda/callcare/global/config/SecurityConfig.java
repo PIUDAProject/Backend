@@ -31,6 +31,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/hospitals/search").permitAll()
 				// TODO: 인증 필터 도입 시 제거하고, 로그인 사용자의 seniorId 소유권 검증으로 전환
 				.requestMatchers(HttpMethod.GET, "/api/home/**").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/home/**").permitAll()
 				.anyRequest().authenticated()
 			);
 		return http.build();

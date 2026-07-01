@@ -66,7 +66,7 @@ class MedicationToggleCommandServiceTest {
         // Given - 약 1개뿐인 시간대, 토글 후 그 약이 복용 완료
         Medication med = medication(MED_ID);
         given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
-        given(medicationScheduleRepository.existsByMedication_IdAndMealTime(MED_ID, MealTime.BREAKFAST))
+        given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.BREAKFAST, today))
                 .willReturn(true);
         given(medicationLogRepository.findByMedication_IdAndTakenDateAndMealTime(MED_ID, today, MealTime.BREAKFAST))
                 .willReturn(Optional.empty());
@@ -78,7 +78,7 @@ class MedicationToggleCommandServiceTest {
 
         // When
         MedicationLogToggleResponse result =
-                medicationToggleCommandService.toggle(MED_ID, MealTime.BREAKFAST, null);
+                medicationToggleCommandService.toggle(MED_ID, MealTime.BREAKFAST, today);
 
         // Then
         assertThat(result.isTaken()).isTrue();
@@ -92,7 +92,7 @@ class MedicationToggleCommandServiceTest {
         // Given
         Medication med = medication(MED_ID);
         given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
-        given(medicationScheduleRepository.existsByMedication_IdAndMealTime(MED_ID, MealTime.DINNER))
+        given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.DINNER, today))
                 .willReturn(true);
         given(medicationLogRepository.findByMedication_IdAndTakenDateAndMealTime(MED_ID, today, MealTime.DINNER))
                 .willReturn(Optional.of(log(med, MealTime.DINNER, true)));
@@ -104,7 +104,7 @@ class MedicationToggleCommandServiceTest {
 
         // When
         MedicationLogToggleResponse result =
-                medicationToggleCommandService.toggle(MED_ID, MealTime.DINNER, null);
+                medicationToggleCommandService.toggle(MED_ID, MealTime.DINNER, today);
 
         // Then
         assertThat(result.isTaken()).isFalse();
@@ -129,7 +129,7 @@ class MedicationToggleCommandServiceTest {
     void toggle_throws_whenMedicationNotFound() {
         given(medicationRepository.findById(MED_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> medicationToggleCommandService.toggle(MED_ID, MealTime.BREAKFAST, null))
+        assertThatThrownBy(() -> medicationToggleCommandService.toggle(MED_ID, MealTime.BREAKFAST, today))
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEDICATION_NOT_FOUND);
     }
@@ -139,10 +139,10 @@ class MedicationToggleCommandServiceTest {
     void toggle_throws_whenScheduleNotFound() {
         Medication med = medication(MED_ID);
         given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
-        given(medicationScheduleRepository.existsByMedication_IdAndMealTime(MED_ID, MealTime.LUNCH))
+        given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.LUNCH, today))
                 .willReturn(false);
 
-        assertThatThrownBy(() -> medicationToggleCommandService.toggle(MED_ID, MealTime.LUNCH, null))
+        assertThatThrownBy(() -> medicationToggleCommandService.toggle(MED_ID, MealTime.LUNCH, today))
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEDICATION_SCHEDULE_NOT_FOUND);
         then(medicationLogCommandService).should(never()).writeLog(any(), any(), any(), anyBoolean());

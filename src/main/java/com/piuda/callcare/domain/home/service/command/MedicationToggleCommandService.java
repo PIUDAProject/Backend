@@ -49,8 +49,8 @@ public class MedicationToggleCommandService {
         Medication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
 
-        // 3) 그 약에 해당 시간대 스케줄이 실제 존재하는지 검증
-        if (!medicationScheduleRepository.existsByMedication_IdAndMealTime(medicationId, mealTime)) {
+        // 3) 그 약에 해당 시간대의 오늘 활성 스케줄이 실제 존재하는지 검증 (완료 재계산과 동일 기준)
+        if (!medicationScheduleRepository.existsActiveScheduleForToggle(medicationId, mealTime, targetDate)) {
             throw new CallCareException(ErrorCode.MEDICATION_SCHEDULE_NOT_FOUND);
         }
 

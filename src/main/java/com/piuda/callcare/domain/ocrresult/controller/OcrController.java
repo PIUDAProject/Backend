@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class OcrController {
 
+
     private final OcrCommandService ocrCommandService;
 
     @Operation(summary = "처방전 OCR 분석", description = "처방전 이미지를 분석해 약 이름, 복용 횟수, 용량, 복용 일수를 추출합니다.")

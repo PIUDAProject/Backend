@@ -17,4 +17,14 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
               AND m.endDate IS NOT NULL
             """)
     List<Medication> findActiveMedicationsForDepletion(@Param("seniorId") Long seniorId);
+
+    // 충돌 분석용: 특정 어르신의 활성 약 중 DrugInfo(상호작용 텍스트 소스)가 연결된 것만 조회.
+    // JOIN FETCH(inner join)라 drugInfo가 없는 약은 자동 제외 → 상호작용 텍스트 없는 약은 대상 아님.
+    @Query("""
+            SELECT m FROM Medication m
+            JOIN FETCH m.drugInfo
+            WHERE m.senior.id = :seniorId
+              AND m.isActive = true
+            """)
+    List<Medication> findActiveWithDrugInfoBySeniorId(@Param("seniorId") Long seniorId);
 }

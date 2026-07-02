@@ -1,5 +1,6 @@
 package com.piuda.callcare.domain.drugconflict.entity;
 
+import com.piuda.callcare.domain.drugconflict.enums.ConflictSeverity;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.senior.entity.Senior;
 
@@ -34,6 +35,10 @@ public class DrugConflict {
     @JoinColumn(name = "medication_id_2", nullable = false)
     private Medication medication2;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "severity", nullable = false)
+    private ConflictSeverity severity; // 금기/주의 등급 (intrc 경고 문장 말투로 판정)
+
     @Column(name = "conflict_description", columnDefinition = "TEXT")
     private String conflictDescription;
 
@@ -45,10 +50,11 @@ public class DrugConflict {
 
     @Builder
     public DrugConflict(Senior senior, Medication medication1, Medication medication2,
-                        String conflictDescription) {
+                        ConflictSeverity severity, String conflictDescription) {
         this.senior = senior;
         this.medication1 = medication1;
         this.medication2 = medication2;
+        this.severity = severity;
         this.conflictDescription = conflictDescription;
         this.isResolved = false;
         this.createdAt = LocalDateTime.now();

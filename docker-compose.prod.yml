@@ -8,6 +8,8 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms256m -Xmx256m
+    mem_limit: 512m
+    memswap_limit: 512m
     volumes:
       - es-data:/usr/share/elasticsearch/data
     restart: unless-stopped

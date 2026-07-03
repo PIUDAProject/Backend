@@ -1,6 +1,7 @@
 package com.piuda.callcare.domain.medication.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -25,10 +26,10 @@ public record MedicationCreateRequest(
         String dosagePerTime,
 
         @Schema(description = "1일 복용 횟수")
-        Integer timesPerDay,
+        @Min(1) Integer timesPerDay,
 
         @Schema(description = "총 복용 일수")
-        Integer totalDays,
+        @Min(1) Integer totalDays,
 
         @Schema(description = "복용 시작일")
         @NotNull LocalDate startDate,

@@ -258,7 +258,9 @@ public class OcrParser {
 
             String dosageRaw = getCol(texts, colIdx.dosageCol());
             String unit = inferDosageUnit(drugName);
-            String dosage = dosageRaw != null ? dosageRaw + (unit != null ? unit : "") : null;
+            String dosage = dosageRaw != null
+                    ? (dosageRaw.matches("\\d+(?:\\.\\d+)?") && unit != null ? dosageRaw + unit : dosageRaw)
+                    : null;
             Integer times = parseIntOrNull(getCol(texts, colIdx.timesCol()));
             Integer days  = parseIntOrNull(getCol(texts, colIdx.daysCol()));
 

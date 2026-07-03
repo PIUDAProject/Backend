@@ -1,21 +1,21 @@
 package com.piuda.callcare.domain.ocrresult.converter;
 
+import com.piuda.callcare.domain.ocrresult.dto.ParsedOcrData;
 import com.piuda.callcare.domain.ocrresult.dto.response.OcrResultResponse;
 import com.piuda.callcare.domain.ocrresult.entity.OcrResult;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class OcrResultConverter {
 
-    // OcrResult → OcrResultResponse
-    public OcrResultResponse toResponse(OcrResult ocrResult) {
+    // OcrResult + 파싱된 약 목록 → OcrResultResponse
+    public OcrResultResponse toResponse(OcrResult ocrResult, List<ParsedOcrData> parsedDrugs) {
         return new OcrResultResponse(
                 ocrResult.getId(),
-                ocrResult.getParsedDrugName(),
-                ocrResult.getParsedDosagePerTime(),
-                ocrResult.getParsedTimesPerDay(),
-                ocrResult.getParsedTotalDays(),
-                ocrResult.getRawText()
+                ocrResult.getRawText(),
+                parsedDrugs
         );
     }
 }

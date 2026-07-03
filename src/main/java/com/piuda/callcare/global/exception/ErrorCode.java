@@ -32,6 +32,9 @@ public enum ErrorCode {
 	// SENIOR
 	SENIOR_NOT_FOUND(HttpStatus.NOT_FOUND, "SENIOR-001", "어르신 정보를 찾을 수 없습니다."),
 
+	// HOSPITAL
+	HOSPITAL_NOT_FOUND(HttpStatus.NOT_FOUND, "HOSPITAL-001", "병원 정보를 찾을 수 없습니다."),
+
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
 

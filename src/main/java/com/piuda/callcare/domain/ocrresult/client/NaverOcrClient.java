@@ -15,9 +15,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -32,7 +32,7 @@ public class NaverOcrClient {
     @Value("${naver.ocr.secret-key}")
     private String secretKey;
 
-    public String callOcr(MultipartFile image) {
+    public List<NaverOcrApiResponse.Field> callOcr(MultipartFile image) {
         try {
             String filename = Objects.requireNonNullElse(image.getOriginalFilename(), "image.jpg");
             String format = extractFormat(filename);
@@ -55,7 +55,7 @@ public class NaverOcrClient {
                     .bodyToMono(NaverOcrApiResponse.class)
                     .block(Duration.ofSeconds(35));
 
-            return extractRawText(response);
+            return extractFields(response);
 
         } catch (WebClientResponseException e) {
             log.error("Naver OCR API 응답 오류 - status: {}, body: {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -68,13 +68,7 @@ public class NaverOcrClient {
         }
     }
 
-    private String buildMessageJson(String format) {
-        return """
-                {"version":"V2","requestId":"%s","timestamp":%d,"lang":"ko","images":[{"format":"%s","name":"image"}]}
-                """.formatted(UUID.randomUUID(), System.currentTimeMillis(), format).trim();
-    }
-
-    private String extractRawText(NaverOcrApiResponse response) {
+    private List<NaverOcrApiResponse.Field> extractFields(NaverOcrApiResponse response) {
         if (response == null || response.images() == null || response.images().isEmpty()) {
             throw new CallCareException(ErrorCode.OCR_API_ERROR);
         }
@@ -82,10 +76,14 @@ public class NaverOcrClient {
         if (!"SUCCESS".equals(image.inferResult()) || image.fields() == null) {
             throw new CallCareException(ErrorCode.OCR_API_ERROR);
         }
-        return image.fields().stream()
-                .map(field -> field.inferText() + (Boolean.TRUE.equals(field.lineBreak()) ? "\n" : " "))
-                .collect(Collectors.joining())
-                .trim();
+        return image.fields();
+    }
+
+    //
+    private String buildMessageJson(String format) {
+        return """
+                {"version":"V2","requestId":"%s","timestamp":%d,"lang":"ko","images":[{"format":"%s","name":"image"}]}
+                """.formatted(UUID.randomUUID(), System.currentTimeMillis(), format).trim();
     }
 
     private String extractFormat(String filename) {

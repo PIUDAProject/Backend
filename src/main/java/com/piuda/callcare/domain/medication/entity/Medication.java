@@ -72,12 +72,15 @@ public class Medication extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive; // 현재 복용 중인지 여부 (복용 종료 시 false로 변경)
 
+    @Column(name = "ocr_result_id")
+    private Long ocrResultId; // OCR 경로로 등록된 경우 연결 ID (직접 등록이면 null)
+
     @Builder
     public Medication(Senior senior, Hospital hospital, DrugInfo drugInfo,
         String drugName, String drugNickname, String drugType,
         String imageUrl, String dosagePerTime, Integer timesPerDay,
         Integer totalDays, LocalDate startDate, LocalDate endDate,
-        LocalDate prescriptionDate, String memo, Boolean isActive) {
+        LocalDate prescriptionDate, String memo, Boolean isActive, Long ocrResultId) {
         this.senior = senior;
         this.hospital = hospital;
         this.drugInfo = drugInfo;
@@ -93,6 +96,7 @@ public class Medication extends BaseEntity {
         this.prescriptionDate = prescriptionDate;
         this.memo = memo;
         this.isActive = isActive;
+        this.ocrResultId = ocrResultId;
     }
 
     public void deactivate() {

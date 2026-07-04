@@ -22,6 +22,9 @@ spring:
   elasticsearch:
     uris: ${LOCAL_ES_URI}
 
+coolsms:
+  mock-enabled: ${COOLSMS_MOCK_ENABLED:true}
+
 management:
   endpoint:
     health:

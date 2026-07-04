@@ -21,6 +21,9 @@ spring:
   elasticsearch:
     uris: ${PROD_ES_URI}
 
+coolsms:
+  mock-enabled: false
+
 management:
   endpoints:
     web:

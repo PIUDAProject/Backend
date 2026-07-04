@@ -1,5 +1,6 @@
 package com.piuda.callcare.domain.senior.service.sms;
 
+import com.piuda.callcare.global.util.PhoneMaskUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,6 @@ public class MockSmsSender implements SmsSender {
 
     @Override
     public void send(String from, String to, String text) {
-        log.info("[MOCK SMS] from={} to={} | {}", from, to, text);
+        log.info("[MOCK SMS] from={} to={} | {}", PhoneMaskUtil.mask(from), PhoneMaskUtil.mask(to), text);
     }
 }

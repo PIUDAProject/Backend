@@ -25,12 +25,16 @@ public class CoolSmsSender implements SmsSender {
     @Override
     public void send(String from, String to, String text) {
         Message message = new Message();
-        message.setFrom(from);
+        message.setFrom(normalizePhoneNumber(from));
         message.setTo(to);
         message.setType(MessageType.SMS);
         message.setText(text);
 
         SingleMessageSentResponse response = messageService.sendOne(new SingleMessageSendingRequest(message));
         log.info("coolsms 문자 발송 완료 - messageId: {}", response != null ? response.getMessageId() : null);
+    }
+
+    private String normalizePhoneNumber(String phoneNumber) {
+        return phoneNumber == null ? "" : phoneNumber.replaceAll("\\D", "");
     }
 }

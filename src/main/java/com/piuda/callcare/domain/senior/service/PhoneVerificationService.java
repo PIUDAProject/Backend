@@ -3,6 +3,7 @@ package com.piuda.callcare.domain.senior.service;
 import com.piuda.callcare.domain.senior.service.sms.SmsSender;
 import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
+import com.piuda.callcare.global.util.PhoneMaskUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,18 +45,21 @@ public class PhoneVerificationService {
 
         String code = generateRandomCode();
         String text = "[콜케어 인증번호] " + code + "\n본인 확인을 위해 인증번호를 입력해주세요.";
+        String codeKey = KEY_PREFIX + normalizedPhoneNumber;
 
         try {
-            smsSender.send(normalizePhoneNumber(sender), normalizedPhoneNumber, text);
-            redisTemplate.opsForValue().set(KEY_PREFIX + normalizedPhoneNumber, code, CODE_TTL);
+            // Redis에 먼저 저장한 뒤 발송
+            redisTemplate.opsForValue().set(codeKey, code, CODE_TTL);
+            // sender 포맷팅/검증은 실제 발송 책임을 지는 SmsSender 구현체(CoolSmsSender)에 맡김
+            smsSender.send(sender, normalizedPhoneNumber, text);
             // 이전 시도 횟수 초기화
             redisTemplate.delete(ATTEMPT_PREFIX + normalizedPhoneNumber);
-            log.info("SMS 인증번호 발송 완료 - phoneNumber: {}", maskedPhoneNumber(normalizedPhoneNumber));
+            log.info("SMS 인증번호 발송 완료 - phoneNumber: {}", PhoneMaskUtil.mask(normalizedPhoneNumber));
         } catch (Exception e) {
-            // 발송 실패 시에는 다음 재시도가 쿨다운에 막히지 않도록 해제
+            redisTemplate.delete(codeKey);
             redisTemplate.delete(COOLDOWN_PREFIX + normalizedPhoneNumber);
             log.error("SMS 인증번호 발송 실패 - phoneNumber: {}, error: {}",
-                    maskedPhoneNumber(normalizedPhoneNumber), e.getMessage(), e);
+                    PhoneMaskUtil.mask(normalizedPhoneNumber), e.getMessage(), e);
             throw new CallCareException(ErrorCode.PHONE_VERIFICATION_SEND_FAILED);
         }
     }
@@ -66,17 +70,17 @@ public class PhoneVerificationService {
         String attemptKey = ATTEMPT_PREFIX + normalizedPhoneNumber;
         String codeKey = KEY_PREFIX + normalizedPhoneNumber;
 
-        String attemptCountValue = redisTemplate.opsForValue().get(attemptKey);
-        int attemptCount = attemptCountValue == null ? 0 : Integer.parseInt(attemptCountValue);
-        if (attemptCount >= MAX_VERIFY_ATTEMPTS) {
-            redisTemplate.delete(codeKey);
-            redisTemplate.delete(attemptKey);
-            throw new CallCareException(ErrorCode.PHONE_VERIFICATION_ATTEMPTS_EXCEEDED);
-        }
-
+        // 만료/미발송 케이스 먼저 걸러냄
         String savedCode = redisTemplate.opsForValue().get(codeKey);
         if (savedCode == null) {
             throw new CallCareException(ErrorCode.PHONE_VERIFICATION_CODE_EXPIRED);
+        }
+        Long currentAttempts = redisTemplate.opsForValue().increment(attemptKey);
+        redisTemplate.expire(attemptKey, CODE_TTL);
+        if (currentAttempts != null && currentAttempts > MAX_VERIFY_ATTEMPTS) {
+            redisTemplate.delete(codeKey);
+            redisTemplate.delete(attemptKey);
+            throw new CallCareException(ErrorCode.PHONE_VERIFICATION_ATTEMPTS_EXCEEDED);
         }
 
         boolean matched = savedCode.equals(code);
@@ -84,10 +88,8 @@ public class PhoneVerificationService {
             redisTemplate.delete(codeKey);
             redisTemplate.delete(attemptKey);
         } else {
-            Long updatedAttempts = redisTemplate.opsForValue().increment(attemptKey);
-            redisTemplate.expire(attemptKey, CODE_TTL);
             log.warn("SMS 인증번호 불일치 - phoneNumber: {}, attempt: {}",
-                    maskedPhoneNumber(normalizedPhoneNumber), updatedAttempts);
+                    PhoneMaskUtil.mask(normalizedPhoneNumber), currentAttempts);
         }
 
         return matched;
@@ -107,12 +109,5 @@ public class PhoneVerificationService {
             throw new CallCareException(ErrorCode.INVALID_PARAMETER);
         }
         return normalized;
-    }
-
-    private String maskedPhoneNumber(String phoneNumber) {
-        if (phoneNumber.length() < 7) {
-            return "****";
-        }
-        return phoneNumber.substring(0, 3) + "****" + phoneNumber.substring(phoneNumber.length() - 4);
     }
 }

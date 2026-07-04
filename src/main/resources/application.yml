@@ -44,3 +44,9 @@ naver:
   ocr:
     invoke-url: ${NAVER_OCR_INVOKE_URL}
     secret-key: ${NAVER_OCR_SECRET_KEY}
+
+coolsms:
+  api-key: ${COOLSMS_API_KEY:}
+  api-secret: ${COOLSMS_API_SECRET:}
+  sender: ${COOLSMS_SENDER_NUMBER:}
+  mock-enabled: ${COOLSMS_MOCK_ENABLED:false}

@@ -6,8 +6,11 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+import com.piuda.callcare.global.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -16,12 +19,16 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
 	private final CorsConfigurationSource corsConfigurationSource;
+	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
 			.cors(cors -> cors.configurationSource(corsConfigurationSource))
 			.csrf(AbstractHttpConfigurer::disable)
+			.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.formLogin(AbstractHttpConfigurer::disable)
+			.httpBasic(AbstractHttpConfigurer::disable)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/test/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/auth/oauth/kakao", "/api/auth/oauth/naver").permitAll()
@@ -36,7 +43,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.POST, "/api/medications").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/medications/batch").permitAll()
 				.anyRequest().authenticated()
-			);
+			)
+			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}
 }

@@ -13,7 +13,10 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "drug_conflict")
+@Table(name = "drug_conflict", uniqueConstraints = @UniqueConstraint(
+        name = "uk_drug_conflict_senior_med1_med2",
+        columnNames = {"senior_id", "medication_id_1", "medication_id_2"}
+))
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class DrugConflict {

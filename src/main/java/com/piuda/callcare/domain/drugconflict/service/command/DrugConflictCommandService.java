@@ -2,6 +2,7 @@ package com.piuda.callcare.domain.drugconflict.service.command;
 
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,12 +60,16 @@ public class DrugConflictCommandService {
             return;
         }
 
-        drugConflictRepository.save(DrugConflict.builder()
-                .senior(senior)
-                .medication1(first)
-                .medication2(second)
-                .severity(match.severity())
-                .conflictDescription(match.description())
-                .build());
+        try {
+            drugConflictRepository.save(DrugConflict.builder()
+                    .senior(senior)
+                    .medication1(first)
+                    .medication2(second)
+                    .severity(match.severity())
+                    .conflictDescription(match.description())
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            // 동시 요청으로 같은 조합이 먼저 저장된 경우(uk_drug_conflict_senior_med1_med2). 정합성은 제약이 보장하므로 무시.
+        }
     }
 }

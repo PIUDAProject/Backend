@@ -17,24 +17,28 @@ public class OcrParser {
     private static final double ROW_CLUSTER_THRESHOLD = 15.0;
 
     private static final Pattern STARRED_DRUG_NAME_PATTERN = Pattern.compile(
-        "\\*([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))"
+        "\\*([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))"
     );
-    // 줄 첫 글자로 시작하고 '(' 또는 '_'가 뒤따르는 비별표 약 이름 (에페신정(성분명) 형태)
+    // 줄 첫 글자로 시작하고 '(' 또는 '_' 또는 숫자가 뒤따르는 비별표 약 이름 (에페신정(성분명), 뮤테란캅셀200밀리그람 형태)
     private static final Pattern NON_STARRED_DRUG_NAME_PATTERN = Pattern.compile(
-        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))(?:\\(|_)",
+        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\d)",
         Pattern.MULTILINE
     );
     private static final Pattern DRUG_NAME_PATTERN = Pattern.compile(
-        "([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))"
+        "([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))"
     );
     private static final Pattern TIMES_PER_DAY_PATTERN = Pattern.compile(
         "1일\\s*투여\\s*횟수\\s*(\\d+)|1일\\s*복용\\s*횟수\\s*(\\d+)|1일\\s*(\\d+)\\s*회|하루\\s*(\\d+)\\s*(?:번|회)|씩\\s*(\\d+)\\s*회"
     );
     private static final Pattern DOSAGE_PER_TIME_PATTERN = Pattern.compile(
-        "1회\\s*투약량\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|ml|mg|g|포)?|" +
-        "1회\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|ml|mg|g|포)|" +
-        "한\\s*번에\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐)|" +
-        "(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|ml|mg|g|포)\\s*씩"
+        "1회\\s*투약량\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|캅셀|ml|mg|g|포)?|" +
+        "1회\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|캅셀|ml|mg|g|포)|" +
+        "한\\s*번에\\s*(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|캅셀)|" +
+        "(\\d+(?:\\.\\d+)?)\\s*(정|캡슐|캅셀|ml|mg|g|포)\\s*씩"
+    );
+    // 라벨 없이 숫자 3개만 나열된 형태: 투약량 횟수 일수 (위더스 약봉투 등)
+    private static final Pattern INLINE_NUMBERS_PATTERN = Pattern.compile(
+        "(\\d+(?:\\.\\d+)?)\\s+(\\d+)\\s+(\\d+)"
     );
     private static final Pattern TOTAL_DAYS_PATTERN = Pattern.compile(
         "총\\s*투약\\s*일수\\s*(\\d+)|총\\s*복용\\s*일수\\s*(\\d+)|(\\d+)\\s*일(?:분|치|간)"
@@ -43,9 +47,9 @@ public class OcrParser {
     private static final Set<String> DRUG_NAME_BLACKLIST = Set.of(
         "약제비총액", "본인부담금", "보험자부담금", "총수납금액", "현금영수증", "비급여및전액본인부담금"
     );
-    // 줄 첫 글자 약 이름 — 단독, (성분명), _ 접미사 모두 허용
+    // 줄 첫 글자 약 이름 — 단독, (성분명), _, 숫자 접미사 모두 허용
     private static final Pattern LINE_DRUG_NAME_PATTERN = Pattern.compile(
-        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\s*$)",
+        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\d|\\s*$)",
         Pattern.MULTILINE
     );
     // "1회투약량1" 처럼 숫자가 바로 붙은 라벨형 패턴 → 텍스트 순서형 약봉투 판별용
@@ -90,14 +94,9 @@ public class OcrParser {
 
     // ── 약봉투/영수증 형식 감지 + 파싱 ──────────────────────────────────────
 
-    // *약이름 패턴이 2개 이상이면 약봉투/영수증 형식으로 판단
+    // *약이름 패턴이 1개 이상이면 약봉투/영수증 형식으로 판단
     private boolean isPharmacyReceipt(String rawText) {
-        Matcher m = STARRED_DRUG_NAME_PATTERN.matcher(rawText);
-        int count = 0;
-        while (m.find()) {
-            if (++count >= 2) return true;
-        }
-        return false;
+        return STARRED_DRUG_NAME_PATTERN.matcher(rawText).find();
     }
 
     // *약이름 + 줄 첫 약이름 통합 → 위치 순 정렬 후 블록 분리 → 각 블록에서 숫자 필드 추출
@@ -136,18 +135,28 @@ public class OcrParser {
             String block = rawText.substring(blockStart, blockEnd);
 
             String dosage = extractDosagePerTime(block);
+            Integer times = extractTimesPerDay(block);
+            Integer days = extractTotalDays(block);
+
             // 단위 없이 숫자만 나온 경우 약 이름에서 단위 추론
             if (dosage != null && dosage.matches("\\d+(?:\\.\\d+)?")) {
                 String unit = inferDosageUnit(names.get(i));
                 if (unit != null) dosage = dosage + unit;
             }
 
-            result.add(new ParsedOcrData(
-                    names.get(i),
-                    dosage,
-                    extractTimesPerDay(block),
-                    extractTotalDays(block)
-            ));
+            // 라벨 없이 숫자 3개만 나열된 형태 폴백 (투약량 횟수 일수 순서)
+            if (dosage == null && times == null && days == null) {
+                Matcher inlineMatcher = INLINE_NUMBERS_PATTERN.matcher(block);
+                if (inlineMatcher.find()) {
+                    String rawDosage = inlineMatcher.group(1);
+                    String unit = inferDosageUnit(names.get(i));
+                    dosage = rawDosage.matches("\\d+(?:\\.\\d+)?") && unit != null ? rawDosage + unit : rawDosage;
+                    times = Integer.parseInt(inlineMatcher.group(2));
+                    days = Integer.parseInt(inlineMatcher.group(3));
+                }
+            }
+
+            result.add(new ParsedOcrData(names.get(i), dosage, times, days));
         }
 
         return result;
@@ -157,6 +166,7 @@ public class OcrParser {
     private String inferDosageUnit(String drugName) {
         if (drugName.endsWith("정")) return "정";
         if (drugName.endsWith("캡슐")) return "캡슐";
+        if (drugName.endsWith("캅셀")) return "캡슐";
         if (drugName.endsWith("시럽")) return "ml";
         if (drugName.endsWith("액")) return "ml";
         return null;

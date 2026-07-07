@@ -29,8 +29,6 @@ public class MedicationController {
         @AuthenticationPrincipal Long userId,
         @RequestBody @Valid List<MedicationCreateRequest> requests
     ) {
-        // TODO: 인증 필터 도입 후 제거. 현재는 로컬 테스트를 위해 userId 임시 하드코딩
-        Long testUserId = (userId != null) ? userId : 1L;
-        return ResponseUtils.created(medicationCommandService.registerBatch(testUserId, requests));
+        return ResponseUtils.created(medicationCommandService.registerBatch(userId, requests));
     }
 }

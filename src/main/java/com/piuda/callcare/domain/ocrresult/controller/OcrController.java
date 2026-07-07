@@ -30,8 +30,6 @@ public class OcrController {
         @RequestPart("image") MultipartFile image,
         @RequestParam(defaultValue = "DRUG_BAG") OcrType ocrType
     ) {
-        // TODO: 인증 필터 도입 후 제거. 현재는 로컬 테스트를 위해 userId 임시 하드코딩
-        Long testUserId = (userId != null) ? userId : 1L;
-        return ResponseUtils.ok(ocrCommandService.processOcr(testUserId, seniorId, image, ocrType));
+        return ResponseUtils.ok(ocrCommandService.processOcr(userId, seniorId, image, ocrType));
     }
 }

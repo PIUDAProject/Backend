@@ -39,9 +39,6 @@ public enum ErrorCode {
 	PHONE_VERIFICATION_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "PHONE-004", "인증번호 재전송은 60초 후에 가능합니다."),
 	PHONE_VERIFICATION_ATTEMPTS_EXCEEDED(HttpStatus.BAD_REQUEST, "PHONE-005", "인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해주세요."),
 
-	// HOSPITAL
-	HOSPITAL_NOT_FOUND(HttpStatus.NOT_FOUND, "HOSPITAL-001", "병원 정보를 찾을 수 없습니다."),
-
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
 

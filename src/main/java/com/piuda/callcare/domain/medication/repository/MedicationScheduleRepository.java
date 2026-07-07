@@ -28,16 +28,15 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
             @Param("date") LocalDate date
     );
 
-    // 홈카드용: 해당 날짜에 복용 중(active + 기간 내)인 약의 스케줄을 약·병원과 함께 한 번에 조회 (N+1 방지)
+    // 홈카드용: 해당 날짜에 복용 중(active + 기간 내)인 약의 스케줄을 약과 함께 한 번에 조회 (N+1 방지)
     @Query("""
             SELECT ms FROM MedicationSchedule ms
             JOIN FETCH ms.medication m
-            LEFT JOIN FETCH m.hospital
             WHERE m.senior.id = :seniorId
               AND m.isActive = true
               AND m.startDate <= :date
               AND m.endDate >= :date
-            ORDER BY ms.mealTime, m.hospital.id NULLS LAST, m.id
+            ORDER BY ms.mealTime, m.hospitalName NULLS LAST, m.id
             """)
     List<MedicationSchedule> findActiveSchedulesForHomeCards(
             @Param("seniorId") Long seniorId,

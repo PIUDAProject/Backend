@@ -12,6 +12,9 @@ public record MedicationResponse(
         @Schema(description = "등록된 약 ID")
         Long medicationId,
 
+        @Schema(description = "병원 이름")
+        String hospitalName,
+
         @Schema(description = "약 이름")
         String drugName,
 

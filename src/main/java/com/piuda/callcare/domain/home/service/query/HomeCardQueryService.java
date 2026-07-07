@@ -72,11 +72,11 @@ public class HomeCardQueryService {
     private MealGroupResponse toMealGroup(
             MealTime mealTime, List<MedicationSchedule> schedules, HomeCardMode mode, Set<TakenKey> takenKeys) {
 
-        // 2차: 같은 시간대 안에서 병원 단위 그룹 (조회 순서 유지, hospitalId가 null이면 "병원 정보 없음")
+        // 2차: 같은 시간대 안에서 병원 단위 그룹 (조회 순서 유지, hospitalName이 null이면 "병원 정보 없음")
         // groupingBy는 null 키를 허용하지 않으므로 Optional로 감싼다
         List<HospitalGroupResponse> hospitalGroups = schedules.stream()
                 .collect(Collectors.groupingBy(
-                        s -> Optional.ofNullable(hospitalIdOf(s)), LinkedHashMap::new, Collectors.toList()))
+                        s -> Optional.ofNullable(s.getMedication().getHospitalName()), LinkedHashMap::new, Collectors.toList()))
                 .values().stream()
                 .map(group -> toHospitalGroup(group, mode, takenKeys))
                 .toList();
@@ -91,10 +91,8 @@ public class HomeCardQueryService {
     private HospitalGroupResponse toHospitalGroup(
             List<MedicationSchedule> group, HomeCardMode mode, Set<TakenKey> takenKeys) {
 
-        Long hospitalId = hospitalIdOf(group.get(0));
-        String hospitalName = (hospitalId == null)
-                ? NO_HOSPITAL_NAME
-                : group.get(0).getMedication().getHospital().getName();
+        String hospitalName = group.get(0).getMedication().getHospitalName();
+        String displayName = (hospitalName == null) ? NO_HOSPITAL_NAME : hospitalName;
 
         var medications = group.stream()
                 .map(schedule -> {
@@ -108,13 +106,7 @@ public class HomeCardQueryService {
                 })
                 .toList();
 
-        return new HospitalGroupResponse(hospitalId, hospitalName, medications);
-    }
-
-    private Long hospitalIdOf(MedicationSchedule schedule) {
-        return schedule.getMedication().getHospital() == null
-                ? null
-                : schedule.getMedication().getHospital().getId();
+        return new HospitalGroupResponse(null, displayName, medications);
     }
 
     private Set<TakenKey> loadTakenKeys(Long seniorId, LocalDate date) {

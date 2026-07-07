@@ -1,7 +1,6 @@
 package com.piuda.callcare.domain.medication.entity;
 
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
-import com.piuda.callcare.domain.hospital.entity.Hospital;
 import com.piuda.callcare.domain.senior.entity.Senior;
 import com.piuda.callcare.global.common.entity.BaseEntity;
 
@@ -28,9 +27,8 @@ public class Medication extends BaseEntity {
     @JoinColumn(name = "senior_id", nullable = false)
     private Senior senior;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "hospital_id")
-    private Hospital hospital;
+    @Column(name = "hospital_name")
+    private String hospitalName;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "drug_info_id")
@@ -76,13 +74,13 @@ public class Medication extends BaseEntity {
     private Long ocrResultId; // OCR 경로로 등록된 경우 연결 ID (직접 등록이면 null)
 
     @Builder
-    public Medication(Senior senior, Hospital hospital, DrugInfo drugInfo,
+    public Medication(Senior senior, String hospitalName, DrugInfo drugInfo,
         String drugName, String drugNickname, String drugType,
         String imageUrl, String dosagePerTime, Integer timesPerDay,
         Integer totalDays, LocalDate startDate, LocalDate endDate,
         LocalDate prescriptionDate, String memo, Boolean isActive, Long ocrResultId) {
         this.senior = senior;
-        this.hospital = hospital;
+        this.hospitalName = hospitalName;
         this.drugInfo = drugInfo;
         this.drugName = drugInfo != null ? drugInfo.getItemName() : drugName;
         this.drugNickname = drugNickname;

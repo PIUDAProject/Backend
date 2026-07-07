@@ -2,8 +2,6 @@ package com.piuda.callcare.domain.medication.service.command;
 
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
 import com.piuda.callcare.domain.druginfo.repository.DrugInfoRepository;
-import com.piuda.callcare.domain.hospital.entity.Hospital;
-import com.piuda.callcare.domain.hospital.repository.HospitalRepository;
 import com.piuda.callcare.domain.medication.converter.MedicationConverter;
 import com.piuda.callcare.domain.medication.dto.request.MedicationCreateRequest;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
@@ -32,7 +30,6 @@ public class MedicationCommandService {
     private final MedicationRepository medicationRepository;
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final SeniorRepository seniorRepository;
-    private final HospitalRepository hospitalRepository;
     private final DrugInfoRepository drugInfoRepository;
     private final MedicationConverter medicationConverter;
 
@@ -48,9 +45,6 @@ public class MedicationCommandService {
         Senior senior = seniorRepository.findByIdAndUser_Id(request.seniorId(), userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
 
-        // 병원 정보 — null이면 "병원 정보 없음"으로 처리 (기능명세서 정책)
-        Hospital hospital = resolveHospital(request.hospitalId());
-
         // DrugInfo — ES 검색으로 선택한 경우, 없으면 null (약 이름은 request.drugName() 사용)
         DrugInfo drugInfo = resolveDrugInfo(request.drugInfoId());
 
@@ -61,7 +55,7 @@ public class MedicationCommandService {
 
         Medication medication = Medication.builder()
                 .senior(senior)
-                .hospital(hospital)
+                .hospitalName(request.hospitalName())
                 .drugInfo(drugInfo)
                 .drugName(request.drugName())
                 .dosagePerTime(request.dosagePerTime())
@@ -103,12 +97,6 @@ public class MedicationCommandService {
                         .mealTime(mealTime)
                         .build())
                 .toList();
-    }
-
-    private Hospital resolveHospital(Long hospitalId) {
-        if (hospitalId == null) return null;
-        return hospitalRepository.findById(hospitalId)
-                .orElseThrow(() -> new CallCareException(ErrorCode.HOSPITAL_NOT_FOUND));
     }
 
     private DrugInfo resolveDrugInfo(Long drugInfoId) {

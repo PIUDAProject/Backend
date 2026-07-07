@@ -19,6 +19,7 @@ public class MedicationConverter {
 
         return new MedicationResponse(
                 medication.getId(),
+                medication.getHospitalName(),
                 medication.getDrugName(),
                 medication.getDosagePerTime(),
                 medication.getTimesPerDay(),

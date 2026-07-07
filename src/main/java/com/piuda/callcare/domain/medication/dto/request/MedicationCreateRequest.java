@@ -37,6 +37,6 @@ public record MedicationCreateRequest(
         @Schema(description = "처방 날짜 (처방전 없으면 null → 등록일 기준)")
         LocalDate prescriptionDate,
 
-        @Schema(description = "병원 ID — 병원 없이도 등록 가능 (null 허용)")
-        Long hospitalId
+        @Schema(description = "병원 이름 — 직접 입력, 없으면 null")
+        String hospitalName
 ) {}

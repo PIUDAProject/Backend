@@ -66,6 +66,7 @@ public class MedicationCommandService {
                 .prescriptionDate(request.prescriptionDate())
                 .isActive(true)
                 .ocrResultId(request.ocrResultId())
+                .memo(request.memo())
                 .build();
 
         Medication saved = medicationRepository.save(medication);

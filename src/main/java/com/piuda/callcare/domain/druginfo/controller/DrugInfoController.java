@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "Drug", description = "약품 정보 API (DB 캐시 기반)")
+@Tag(name = "Drug", description = "약품 정보 API (MySQL DB 기반 — ES 장애 시 폴백용)")
 @Validated
 @RestController
 @RequestMapping("/api/drugs")

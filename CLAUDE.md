@@ -35,6 +35,7 @@ Don't assume. Don't hide confusion. Surface tradeoffs.
 - 테스트 작성/수정 시 → `testing_guide.md`
 - Security/Config 만질 때 → `security.md`
 - 배포/Docker/GitHub Actions 관련 → `deploy.md`
+- 커밋/푸시 작업 시 → `git.md` (항상 로드)
 
 ### 🟣 AI 작업 흔적 (`.dev/`)
 - 새로 알게 된 패턴·주의점·오류 기록 → `learnings/`

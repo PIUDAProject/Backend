@@ -35,11 +35,12 @@ public class MedicationController {
         return ResponseUtils.created(medicationCommandService.registerBatch(userId, requests));
     }
 
-    @Operation(summary = "약 상세 정보 조회", description = "약 카드 클릭 시 주의사항/부작용/용법·용량/효능·효과를 반환합니다. DrugInfo 미연결 약은 전 필드 null로 반환됩니다.")
+    @Operation(summary = "약 상세 정보 조회", description = "약 카드 클릭 시 주의사항/부작용/용법·용량/효능·효과를 반환합니다. DrugInfo 미연결 약은 의약품 정보 필드 null로 반환됩니다.")
     @GetMapping("/{medicationId}/detail")
     public ResponseEntity<ApiResponse<MedicationDetailResponse>> getDetail(
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long medicationId
     ) {
-        return ResponseUtils.ok(medicationQueryService.getDetail(medicationId));
+        return ResponseUtils.ok(medicationQueryService.getDetail(userId, medicationId));
     }
 }

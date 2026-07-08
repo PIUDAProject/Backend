@@ -18,9 +18,12 @@ public class MedicationQueryService {
     private final MedicationRepository medicationRepository;
     private final MedicationConverter medicationConverter;
 
-    public MedicationDetailResponse getDetail(Long medicationId) {
+    public MedicationDetailResponse getDetail(Long userId, Long medicationId) {
         Medication medication = medicationRepository.findById(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
+        if (userId != null && !medication.getSenior().getUser().getId().equals(userId)) {
+            throw new CallCareException(ErrorCode.FORBIDDEN);
+        }
         return medicationConverter.toDetailResponse(medication);
     }
 }

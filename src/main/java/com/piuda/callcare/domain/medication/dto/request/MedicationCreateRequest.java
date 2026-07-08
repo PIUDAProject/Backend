@@ -38,5 +38,8 @@ public record MedicationCreateRequest(
         LocalDate prescriptionDate,
 
         @Schema(description = "병원 이름 — 직접 입력, 없으면 null")
-        String hospitalName
+        String hospitalName,
+
+        @Schema(description = "메모 (복용방법 + 보관방법 자동 생성 또는 사용자 직접 입력, 없으면 null)")
+        String memo
 ) {}

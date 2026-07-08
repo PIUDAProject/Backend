@@ -43,7 +43,9 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/conflicts/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/conflicts/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/ocr/**").permitAll()
+				// TODO: 인증 필터 도입 후 제거하고, userId 기반 소유권 검증으로 전환
 				.requestMatchers(HttpMethod.POST, "/api/medications/batch").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/medications/**").permitAll()
 				.anyRequest().authenticated()
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

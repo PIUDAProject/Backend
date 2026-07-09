@@ -12,6 +12,7 @@ import java.util.List;
 @Component
 public class MedicationConverter {
 
+
     // Medication → MedicationGroupItemResponse (약물노트 그룹 상세 조회용)
     public MedicationGroupItemResponse toGroupItemResponse(Medication medication) {
         return new MedicationGroupItemResponse(

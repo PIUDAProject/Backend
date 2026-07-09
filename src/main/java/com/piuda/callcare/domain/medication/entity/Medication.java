@@ -64,8 +64,11 @@ public class Medication extends BaseEntity {
     @Column(name = "prescription_date")
     private LocalDate prescriptionDate; // 처방 날짜
 
+    @Column(name = "usage_storage_info", columnDefinition = "TEXT")
+    private String usageStorageInfo; // DrugInfo 연결 시 자동 생성 (복용법 + 보관법), OCR 등록 시 null
+
     @Column(name = "memo", columnDefinition = "TEXT")
-    private String memo; // 복용 방법 + 보관법 자동 입력
+    private String memo; // 사용자 자유 입력, 항상 빈값으로 시작
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive; // 현재 복용 중인지 여부 (복용 종료 시 false로 변경)
@@ -78,7 +81,8 @@ public class Medication extends BaseEntity {
         String drugName, String drugNickname, String drugType,
         String imageUrl, String dosagePerTime, Integer timesPerDay,
         Integer totalDays, LocalDate startDate, LocalDate endDate,
-        LocalDate prescriptionDate, String memo, Boolean isActive, Long ocrResultId) {
+        LocalDate prescriptionDate, String usageStorageInfo, String memo,
+        Boolean isActive, Long ocrResultId) {
         this.senior = senior;
         this.hospitalName = hospitalName;
         this.drugInfo = drugInfo;
@@ -92,6 +96,7 @@ public class Medication extends BaseEntity {
         this.startDate = startDate;
         this.endDate = endDate;
         this.prescriptionDate = prescriptionDate;
+        this.usageStorageInfo = usageStorageInfo;
         this.memo = memo;
         this.isActive = isActive;
         this.ocrResultId = ocrResultId;

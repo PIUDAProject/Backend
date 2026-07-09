@@ -64,9 +64,10 @@ public class MedicationCommandService {
                 .startDate(request.startDate())
                 .endDate(endDate)
                 .prescriptionDate(request.prescriptionDate())
+                .usageStorageInfo(buildUsageStorageInfo(drugInfo))
+                .memo(request.memo())
                 .isActive(true)
                 .ocrResultId(request.ocrResultId())
-                .memo(request.memo())
                 .build();
 
         Medication saved = medicationRepository.save(medication);
@@ -104,5 +105,15 @@ public class MedicationCommandService {
         if (drugInfoId == null) return null;
         return drugInfoRepository.findById(drugInfoId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.DRUG_NOT_FOUND));
+    }
+
+    private String buildUsageStorageInfo(DrugInfo drugInfo) {
+        if (drugInfo == null) return null;
+        String usage = drugInfo.getUseMethodQesitm();
+        String deposit = drugInfo.getDepositMethodQesitm();
+        if (usage == null && deposit == null) return null;
+        if (usage == null) return deposit;
+        if (deposit == null) return usage;
+        return usage + "\n\n" + deposit;
     }
 }

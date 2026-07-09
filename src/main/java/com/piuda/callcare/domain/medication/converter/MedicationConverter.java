@@ -25,6 +25,7 @@ public class MedicationConverter {
                 medication.getStartDate(),
                 medication.getEndDate(),
                 medication.getTotalDays(),
+                medication.getUsageStorageInfo(),
                 medication.getMemo()
         );
     }

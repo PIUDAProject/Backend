@@ -40,6 +40,6 @@ public record MedicationCreateRequest(
         @Schema(description = "병원 이름 — 직접 입력, 없으면 null")
         String hospitalName,
 
-        @Schema(description = "메모 (복용방법 + 보관방법 자동 생성 또는 사용자 직접 입력, 없으면 null)")
+        @Schema(description = "사용자 자유 입력 메모 (항상 빈값으로 시작, 없으면 null)")
         String memo
 ) {}

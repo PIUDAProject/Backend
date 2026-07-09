@@ -1,6 +1,7 @@
 package com.piuda.callcare.domain.medication.converter;
 
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationNoteItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
@@ -27,6 +28,22 @@ public class MedicationConverter {
                 medication.getTotalDays(),
                 medication.getUsageStorageInfo(),
                 medication.getMemo()
+        );
+    }
+
+    // Medication → MedicationNoteItemResponse (약물노트 리스트 카드 내 약 단건)
+    public MedicationNoteItemResponse toNoteItemResponse(Medication medication) {
+        return new MedicationNoteItemResponse(
+                medication.getId(),
+                medication.getDrugName(),
+                medication.getDrugType(),
+                medication.getImageUrl(),
+                medication.getTimesPerDay(),
+                medication.getDosagePerTime(),
+                medication.getStartDate(),
+                medication.getEndDate(),
+                medication.getTotalDays(),
+                medication.getIsActive()
         );
     }
 

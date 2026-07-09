@@ -60,6 +60,6 @@ public class OcrCommandService {
         log.info("OCR 처리 완료 - ocrResultId: {}, ocrType: {}, 파싱된 약 수: {}",
                 saved.getId(), ocrType, parseResult.parsedDrugs().size());
 
-        return ocrResultConverter.toResponse(saved, parseResult.parsedDrugs());
+        return ocrResultConverter.toResponse(saved, parseResult.parsedDrugs(), parseResult.prescriptionDate());
     }
 }

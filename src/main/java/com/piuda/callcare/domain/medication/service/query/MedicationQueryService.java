@@ -63,16 +63,18 @@ public class MedicationQueryService {
     private List<MedicationNoteGroupResponse> toNoteGroupResponses(List<Medication> medications) {
         Map<String, List<Medication>> grouped = new LinkedHashMap<>();
         for (Medication m : medications) {
-            String key = m.getStartDate() + "|" + m.getHospitalName();
+            LocalDate groupDate = m.getPrescriptionDate() != null ? m.getPrescriptionDate() : m.getStartDate();
+            String key = groupDate + "|" + m.getHospitalName();
             grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(m);
         }
         return grouped.values().stream()
                 .map(group -> {
                     Medication first = group.get(0);
+                    LocalDate groupDate = first.getPrescriptionDate() != null ? first.getPrescriptionDate() : first.getStartDate();
                     List<MedicationNoteItemResponse> items = group.stream()
                             .map(medicationConverter::toNoteItemResponse)
                             .toList();
-                    return new MedicationNoteGroupResponse(first.getStartDate(), first.getHospitalName(), items);
+                    return new MedicationNoteGroupResponse(groupDate, first.getHospitalName(), items);
                 })
                 .toList();
     }

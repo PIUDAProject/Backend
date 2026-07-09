@@ -6,6 +6,7 @@ import com.piuda.callcare.domain.ocrresult.dto.response.NaverOcrApiResponse;
 import com.piuda.callcare.domain.ocrresult.enums.OcrType;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -64,6 +65,14 @@ public class OcrParser {
         "1회\\s*투약량\\s*\\d|1일\\s*투여\\s*횟수\\s*\\d|총\\s*투약\\s*일수\\s*\\d"
     );
 
+    // 처방일 우선, 없으면 조제일 fallback
+    private static final Pattern PRESCRIPTION_DATE_PATTERN = Pattern.compile(
+        "(?:처방일|처방일자|처방전발행일)\\s*[:\\-]?\\s*(\\d{4})\\s*[.년\\-]\\s*(\\d{1,2})\\s*[.월\\-]?\\s*(\\d{1,2})"
+    );
+    private static final Pattern DISPENSE_DATE_PATTERN = Pattern.compile(
+        "(?:조제일|조제일자)\\s*[:\\-]?\\s*(\\d{4})\\s*[.년\\-]\\s*(\\d{1,2})\\s*[.월\\-]?\\s*(\\d{1,2})"
+    );
+
     private static final List<String> DRUG_NAME_KEYWORDS = List.of("명칭", "약품명", "의약품");
     private static final List<String> DOSAGE_KEYWORDS   = List.of("투약량", "복용량", "1회");
     private static final List<String> TIMES_KEYWORDS    = List.of("투여횟수", "복용횟수", "횟수");
@@ -86,7 +95,7 @@ public class OcrParser {
             parsedDrugs = List.of(parseByRegex(rawText));
         }
 
-        return new OcrParseResult(rawText, parsedDrugs);
+        return new OcrParseResult(rawText, parsedDrugs, extractPrescriptionDate(rawText));
     }
 
     // ── rawText 조립 ──────────────────────────────────────────────────────────
@@ -461,6 +470,27 @@ public class OcrParser {
             }
         }
         return null;
+    }
+
+    // ── 처방일 추출 ───────────────────────────────────────────────────────────
+
+    // 처방일 우선 파싱, 없으면 조제일 fallback
+    private LocalDate extractPrescriptionDate(String rawText) {
+        LocalDate date = tryExtractDate(PRESCRIPTION_DATE_PATTERN, rawText);
+        return date != null ? date : tryExtractDate(DISPENSE_DATE_PATTERN, rawText);
+    }
+
+    private LocalDate tryExtractDate(Pattern pattern, String text) {
+        Matcher m = pattern.matcher(text);
+        if (!m.find()) return null;
+        try {
+            int year  = Integer.parseInt(m.group(1));
+            int month = Integer.parseInt(m.group(2).trim());
+            int day   = Integer.parseInt(m.group(3).trim());
+            return LocalDate.of(year, month, day);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ── 좌표 유틸 ─────────────────────────────────────────────────────────────

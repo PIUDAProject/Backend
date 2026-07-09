@@ -1,7 +1,9 @@
 package com.piuda.callcare.domain.medication.controller;
 
 import com.piuda.callcare.domain.medication.dto.request.MedicationCreateRequest;
+import com.piuda.callcare.domain.medication.dto.request.MedicationUpdateRequest;
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.service.command.MedicationCommandService;
 import com.piuda.callcare.domain.medication.service.query.MedicationQueryService;
@@ -46,5 +48,46 @@ public class MedicationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate prescriptionDate
     ) {
         return ResponseUtils.ok(medicationQueryService.getGroup(userId, seniorId, hospitalName, prescriptionDate));
+    }
+
+    @Operation(summary = "약물노트 목록 조회", description = "복용 시작일 + 병원 기준으로 그룹화된 약물 목록을 반환합니다.")
+    @GetMapping("/notes")
+    public ResponseEntity<ApiResponse<List<MedicationNoteGroupResponse>>> getNoteList(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Long seniorId
+    ) {
+        return ResponseUtils.ok(medicationQueryService.getNoteList(userId, seniorId));
+    }
+
+    @Operation(summary = "약물노트 검색", description = "약 이름/별명/병원명으로 검색합니다. period: 1w·1m·3m·1y (기본 1y)")
+    @GetMapping("/notes/search")
+    public ResponseEntity<ApiResponse<List<MedicationNoteGroupResponse>>> searchNotes(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Long seniorId,
+            @RequestParam String keyword,
+            @RequestParam(required = false, defaultValue = "1y") String period
+    ) {
+        return ResponseUtils.ok(medicationQueryService.searchNotes(userId, seniorId, keyword, period));
+    }
+
+    @Operation(summary = "약 수정", description = "null 필드는 변경하지 않습니다. timesPerDay 변경 시 스케줄을 재생성합니다.")
+    @PatchMapping("/{medicationId}")
+    public ResponseEntity<ApiResponse<Void>> update(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long medicationId,
+            @RequestBody MedicationUpdateRequest request
+    ) {
+        medicationCommandService.update(userId, medicationId, request);
+        return ResponseUtils.ok();
+    }
+
+    @Operation(summary = "약 삭제", description = "약과 복용 스케줄을 완전 삭제합니다. 복구 불가능합니다.")
+    @DeleteMapping("/{medicationId}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long medicationId
+    ) {
+        medicationCommandService.delete(userId, medicationId);
+        return ResponseUtils.noContent();
     }
 }

@@ -11,6 +11,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface MedicationScheduleRepository extends JpaRepository<MedicationSchedule, Long> {
 
+    void deleteAllByMedication_Id(Long medicationId);
+
     // 토글 검증용: 해당 약에 그 시간대의 오늘 활성(복용 기간 내) 스케줄이 실제 존재하는지
     // (홈카드 완료 계산의 findActiveSchedulesForHomeCards와 동일한 active/기간 조건으로 게이트를 맞춘다)
     @Query("""

@@ -1,7 +1,7 @@
 package com.piuda.callcare.domain.medication.controller;
 
 import com.piuda.callcare.domain.medication.dto.request.MedicationCreateRequest;
-import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.service.command.MedicationCommandService;
 import com.piuda.callcare.domain.medication.service.query.MedicationQueryService;
@@ -11,10 +11,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Tag(name = "Medication", description = "약 등록 API")
@@ -35,12 +37,14 @@ public class MedicationController {
         return ResponseUtils.created(medicationCommandService.registerBatch(userId, requests));
     }
 
-    @Operation(summary = "약 상세 정보 조회", description = "약 카드 클릭 시 주의사항/부작용/용법·용량/효능·효과를 반환합니다. DrugInfo 미연결 약은 의약품 정보 필드 null로 반환됩니다.")
-    @GetMapping("/{medicationId}/detail")
-    public ResponseEntity<ApiResponse<MedicationDetailResponse>> getDetail(
+    @Operation(summary = "약물노트 그룹 상세 조회", description = "병원+처방일 그룹 카드 클릭 시 해당 그룹의 약 리스트와 각 약의 메모를 반환합니다. hospitalName/prescriptionDate 미전달 시 null 그룹 조회.")
+    @GetMapping("/group")
+    public ResponseEntity<ApiResponse<List<MedicationGroupItemResponse>>> getGroup(
             @AuthenticationPrincipal Long userId,
-            @PathVariable Long medicationId
+            @RequestParam Long seniorId,
+            @RequestParam(required = false) String hospitalName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate prescriptionDate
     ) {
-        return ResponseUtils.ok(medicationQueryService.getDetail(userId, medicationId));
+        return ResponseUtils.ok(medicationQueryService.getGroup(userId, seniorId, hospitalName, prescriptionDate));
     }
 }

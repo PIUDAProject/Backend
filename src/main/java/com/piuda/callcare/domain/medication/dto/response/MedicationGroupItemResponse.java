@@ -34,6 +34,9 @@ public record MedicationGroupItemResponse(
         @Schema(description = "총 복용 일수 (없으면 null)")
         Integer totalDays,
 
-        @Schema(description = "메모 — OCR 자동 생성 또는 사용자 직접 입력 (없으면 null)")
+        @Schema(description = "복용법 + 보관법 자동 생성 — DrugInfo 연결 시에만 채워짐, OCR 등록 시 null")
+        String usageStorageInfo,
+
+        @Schema(description = "사용자 자유 입력 메모 (없으면 null)")
         String memo
 ) {}

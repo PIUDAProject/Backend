@@ -24,10 +24,11 @@ public class MedicationQueryService {
     private final MedicationConverter medicationConverter;
 
     public List<MedicationGroupItemResponse> getGroup(Long userId, Long seniorId, String hospitalName, LocalDate prescriptionDate) {
-        if (userId != null) {
-            seniorRepository.findByIdAndUser_Id(seniorId, userId)
-                    .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
+        if (userId == null) {
+            throw new CallCareException(ErrorCode.FORBIDDEN);
         }
+        seniorRepository.findByIdAndUser_Id(seniorId, userId)
+                .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
         List<Medication> medications = medicationRepository.findByGroup(seniorId, hospitalName, prescriptionDate);
         return medications.stream()
                 .map(medicationConverter::toGroupItemResponse)

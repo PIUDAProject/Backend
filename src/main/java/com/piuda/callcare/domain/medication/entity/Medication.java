@@ -102,6 +102,19 @@ public class Medication extends BaseEntity {
         this.ocrResultId = ocrResultId;
     }
 
+    public void update(String drugName, String dosagePerTime, Integer timesPerDay,
+                       Integer totalDays, LocalDate startDate, LocalDate endDate,
+                       String hospitalName, String memo) {
+        if (drugName != null) this.drugName = drugName;
+        if (dosagePerTime != null) this.dosagePerTime = dosagePerTime;
+        if (timesPerDay != null) this.timesPerDay = timesPerDay;
+        if (totalDays != null) this.totalDays = totalDays;
+        if (startDate != null) this.startDate = startDate;
+        if (endDate != null) this.endDate = endDate;
+        if (hospitalName != null) this.hospitalName = hospitalName;
+        if (memo != null) this.memo = memo;
+    }
+
     public void deactivate() {
         this.isActive = false;
     }

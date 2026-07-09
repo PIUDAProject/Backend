@@ -2,6 +2,7 @@ package com.piuda.callcare.domain.medication.controller;
 
 import com.piuda.callcare.domain.medication.dto.request.MedicationCreateRequest;
 import com.piuda.callcare.domain.medication.dto.request.MedicationUpdateRequest;
+import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
@@ -37,6 +38,18 @@ public class MedicationController {
         @RequestBody @Valid List<MedicationCreateRequest> requests
     ) {
         return ResponseUtils.created(medicationCommandService.registerBatch(userId, requests));
+    }
+
+    @Operation(
+        summary = "약 단건 상세 조회",
+        description = "약물노트에서 '재등록' 버튼 클릭 시 호출합니다. 약 이름·복용법·병원명·처방일·메모 등 등록 화면 프리필에 필요한 모든 필드를 반환합니다. 반환된 값을 그대로 POST /api/medications/batch에 담아 재등록하면 됩니다."
+    )
+    @GetMapping("/{medicationId}")
+    public ResponseEntity<ApiResponse<MedicationDetailResponse>> getDetail(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long medicationId
+    ) {
+        return ResponseUtils.ok(medicationQueryService.getDetail(userId, medicationId));
     }
 
     @Operation(summary = "약물노트 그룹 상세 조회", description = "병원+처방일 그룹 카드 클릭 시 해당 그룹의 약 리스트와 각 약의 메모를 반환합니다. hospitalName/prescriptionDate 미전달 시 null 그룹 조회.")

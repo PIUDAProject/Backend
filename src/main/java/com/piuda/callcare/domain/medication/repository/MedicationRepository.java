@@ -1,5 +1,6 @@
 package com.piuda.callcare.domain.medication.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.piuda.callcare.domain.medication.entity.Medication;
@@ -27,4 +28,17 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
               AND m.isActive = true
             """)
     List<Medication> findActiveWithDrugInfoBySeniorId(@Param("seniorId") Long seniorId);
+
+    // 약물노트 그룹 상세 조회: 병원명 + 처방일 조합이 그룹 키 (둘 다 null 가능)
+    @Query("""
+            SELECT m FROM Medication m
+            WHERE m.senior.id = :seniorId
+              AND ((:hospitalName IS NULL AND m.hospitalName IS NULL) OR m.hospitalName = :hospitalName)
+              AND ((:prescriptionDate IS NULL AND m.prescriptionDate IS NULL) OR m.prescriptionDate = :prescriptionDate)
+              AND m.isActive = true
+            ORDER BY m.createdAt ASC
+            """)
+    List<Medication> findByGroup(@Param("seniorId") Long seniorId,
+                                 @Param("hospitalName") String hospitalName,
+                                 @Param("prescriptionDate") LocalDate prescriptionDate);
 }

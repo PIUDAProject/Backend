@@ -1,7 +1,6 @@
 package com.piuda.callcare.domain.medication.converter;
 
-import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
-import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
@@ -13,18 +12,19 @@ import java.util.List;
 @Component
 public class MedicationConverter {
 
-    // Medication → MedicationDetailResponse (약 상세 조회용, DrugInfo 없으면 전 필드 null)
-    public MedicationDetailResponse toDetailResponse(Medication medication) {
-        DrugInfo drugInfo = medication.getDrugInfo();
-        if (drugInfo == null) {
-            return new MedicationDetailResponse(medication.getDrugName(), null, null, null, null);
-        }
-        return new MedicationDetailResponse(
+    // Medication → MedicationGroupItemResponse (약물노트 그룹 상세 조회용)
+    public MedicationGroupItemResponse toGroupItemResponse(Medication medication) {
+        return new MedicationGroupItemResponse(
+                medication.getId(),
                 medication.getDrugName(),
-                drugInfo.getEfcyQesitm(),
-                drugInfo.getUseMethodQesitm(),
-                drugInfo.getAtpnQesitm(),
-                drugInfo.getSeQesitm()
+                medication.getDrugType(),
+                medication.getImageUrl(),
+                medication.getTimesPerDay(),
+                medication.getDosagePerTime(),
+                medication.getStartDate(),
+                medication.getEndDate(),
+                medication.getTotalDays(),
+                medication.getMemo()
         );
     }
 

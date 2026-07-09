@@ -75,7 +75,7 @@ public class MedicationController {
     public ResponseEntity<ApiResponse<Void>> update(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long medicationId,
-            @RequestBody MedicationUpdateRequest request
+            @RequestBody @Valid MedicationUpdateRequest request
     ) {
         medicationCommandService.update(userId, medicationId, request);
         return ResponseUtils.ok();

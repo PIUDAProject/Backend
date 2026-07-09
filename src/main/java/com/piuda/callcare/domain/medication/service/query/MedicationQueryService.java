@@ -79,7 +79,7 @@ public class MedicationQueryService {
 
     private LocalDate resolveFromDate(String period) {
         LocalDate today = LocalDate.now();
-        return switch (period == null ? "1y" : period) {
+        return switch (period == null ? "1y" : period.toLowerCase()) {
             case "1w" -> today.minusWeeks(1);
             case "1m" -> today.minusMonths(1);
             case "3m" -> today.minusMonths(3);

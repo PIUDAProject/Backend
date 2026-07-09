@@ -121,8 +121,10 @@ public class MedicationCommandService {
         LocalDate newEndDate = null;
         if (request.startDate() != null || request.totalDays() != null) {
             LocalDate effectiveStart = request.startDate() != null ? request.startDate() : medication.getStartDate();
-            Integer effectiveDays = request.totalDays() != null ? request.totalDays() : medication.getTotalDays();
-            newEndDate = effectiveDays != null ? effectiveStart.plusDays(effectiveDays - 1) : null;
+            if (effectiveStart != null) {
+                Integer effectiveDays = request.totalDays() != null ? request.totalDays() : medication.getTotalDays();
+                newEndDate = effectiveDays != null ? effectiveStart.plusDays(effectiveDays - 1) : null;
+            }
         }
 
         medication.update(request.drugName(), request.dosagePerTime(), request.timesPerDay(),

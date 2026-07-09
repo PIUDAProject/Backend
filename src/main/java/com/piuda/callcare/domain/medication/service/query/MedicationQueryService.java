@@ -1,6 +1,7 @@
 package com.piuda.callcare.domain.medication.service.query;
 
 import com.piuda.callcare.domain.medication.converter.MedicationConverter;
+import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteItemResponse;
@@ -27,6 +28,16 @@ public class MedicationQueryService {
     private final MedicationRepository medicationRepository;
     private final SeniorRepository seniorRepository;
     private final MedicationConverter medicationConverter;
+
+    // 약 단건 상세 조회 — 재등록 화면 프리필용
+    public MedicationDetailResponse getDetail(Long userId, Long medicationId) {
+        if (userId == null) throw new CallCareException(ErrorCode.FORBIDDEN);
+        Medication medication = medicationRepository.findById(medicationId)
+                .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
+        seniorRepository.findByIdAndUser_Id(medication.getSenior().getId(), userId)
+                .orElseThrow(() -> new CallCareException(ErrorCode.FORBIDDEN));
+        return medicationConverter.toDetailResponse(medication);
+    }
 
     // 병원+처방일 그룹의 약 상세 목록 조회
     public List<MedicationGroupItemResponse> getGroup(Long userId, Long seniorId, String hospitalName, LocalDate prescriptionDate) {

@@ -52,22 +52,22 @@ public class MedicationQueryService {
                 .toList();
     }
 
-    // 시니어의 약 전체 목록 (활성/비활성 모두) — startDate+병원 기준 그룹화
-    public List<MedicationNoteGroupResponse> getNoteList(Long userId, Long seniorId) {
+    // 시니어의 약 목록 — isActive: true(복용중) / false(복용완료) / null(전체)
+    public List<MedicationNoteGroupResponse> getNoteList(Long userId, Long seniorId, Boolean isActive) {
         if (userId == null) throw new CallCareException(ErrorCode.FORBIDDEN);
         seniorRepository.findByIdAndUser_Id(seniorId, userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
-        List<Medication> medications = medicationRepository.findAllBySeniorId(seniorId);
+        List<Medication> medications = medicationRepository.findAllBySeniorId(seniorId, isActive);
         return toNoteGroupResponses(medications);
     }
 
-    // 약 이름/별명/병원명 키워드 검색 + 기간 필터 (1w·1m·3m·1y)
-    public List<MedicationNoteGroupResponse> searchNotes(Long userId, Long seniorId, String keyword, String period) {
+    // 약 이름/별명/병원명 키워드 검색 + 기간 필터 + 상태 필터
+    public List<MedicationNoteGroupResponse> searchNotes(Long userId, Long seniorId, String keyword, String period, Boolean isActive) {
         if (userId == null) throw new CallCareException(ErrorCode.FORBIDDEN);
         seniorRepository.findByIdAndUser_Id(seniorId, userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
         LocalDate fromDate = resolveFromDate(period);
-        List<Medication> medications = medicationRepository.searchByKeyword(seniorId, keyword, fromDate);
+        List<Medication> medications = medicationRepository.searchByKeyword(seniorId, keyword, fromDate, isActive);
         return toNoteGroupResponses(medications);
     }
 

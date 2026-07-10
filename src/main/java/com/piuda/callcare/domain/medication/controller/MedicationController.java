@@ -63,24 +63,32 @@ public class MedicationController {
         return ResponseUtils.ok(medicationQueryService.getGroup(userId, seniorId, hospitalName, prescriptionDate));
     }
 
-    @Operation(summary = "약물노트 목록 조회", description = "복용 시작일 + 병원 기준으로 그룹화된 약물 목록을 반환합니다.")
+    @Operation(
+        summary = "약물노트 목록 조회",
+        description = "복용 시작일 + 병원 기준으로 그룹화된 약물 목록을 반환합니다. isActive=true(복용중만) / isActive=false(복용완료만) / 미전달(전체)."
+    )
     @GetMapping("/notes")
     public ResponseEntity<ApiResponse<List<MedicationNoteGroupResponse>>> getNoteList(
             @AuthenticationPrincipal Long userId,
-            @RequestParam Long seniorId
+            @RequestParam Long seniorId,
+            @RequestParam(required = false) Boolean isActive
     ) {
-        return ResponseUtils.ok(medicationQueryService.getNoteList(userId, seniorId));
+        return ResponseUtils.ok(medicationQueryService.getNoteList(userId, seniorId, isActive));
     }
 
-    @Operation(summary = "약물노트 검색", description = "약 이름/별명/병원명으로 검색합니다. period: 1w·1m·3m·1y (기본 1y)")
+    @Operation(
+        summary = "약물노트 검색",
+        description = "약 이름/별명/병원명으로 검색합니다. period: 1w·1m·3m·1y (기본 1y). isActive=true(복용중만) / isActive=false(복용완료만) / 미전달(전체)."
+    )
     @GetMapping("/notes/search")
     public ResponseEntity<ApiResponse<List<MedicationNoteGroupResponse>>> searchNotes(
             @AuthenticationPrincipal Long userId,
             @RequestParam Long seniorId,
             @RequestParam String keyword,
-            @RequestParam(required = false, defaultValue = "1y") String period
+            @RequestParam(required = false, defaultValue = "1y") String period,
+            @RequestParam(required = false) Boolean isActive
     ) {
-        return ResponseUtils.ok(medicationQueryService.searchNotes(userId, seniorId, keyword, period));
+        return ResponseUtils.ok(medicationQueryService.searchNotes(userId, seniorId, keyword, period, isActive));
     }
 
     @Operation(summary = "약 수정", description = "null 필드는 변경하지 않습니다. timesPerDay 변경 시 스케줄을 재생성합니다.")

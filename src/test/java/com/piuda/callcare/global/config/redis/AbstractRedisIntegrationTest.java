@@ -3,6 +3,8 @@ package com.piuda.callcare.global.config.redis;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -25,6 +27,7 @@ import org.testcontainers.utility.DockerImageName;
 @Tag("integration")
 @ActiveProfiles("test")
 @SpringBootTest(classes = {RedisConfig.class, IdempotencyKeyStore.class, DelayedQueue.class})
+@ImportAutoConfiguration(RedisAutoConfiguration.class)
 abstract class AbstractRedisIntegrationTest {
 
 	static final GenericContainer<?> REDIS =

@@ -110,9 +110,7 @@ public class MedicationQueryService {
         LocalDate mergedStart = first.getStartDate();
         LocalDate mergedEnd = first.getEndDate();
         Integer mergedDays = first.getTotalDays();
-        LocalDate reportDate = first.getPrescriptionDate() != null
-                ? first.getPrescriptionDate()
-                : first.getCreatedAt().toLocalDate();
+        LocalDate reportDate = resolveReportDate(first);
 
         for (int i = 1; i < sorted.size(); i++) {
             Medication curr = sorted.get(i);
@@ -129,9 +127,7 @@ public class MedicationQueryService {
                 mergedStart = curr.getStartDate();
                 mergedEnd = curr.getEndDate();
                 mergedDays = curr.getTotalDays();
-                reportDate = curr.getPrescriptionDate() != null
-                        ? curr.getPrescriptionDate()
-                        : curr.getCreatedAt().toLocalDate();
+                reportDate = resolveReportDate(curr);
                 first = curr;
             }
         }
@@ -158,6 +154,12 @@ public class MedicationQueryService {
                     return new MedicationNoteGroupResponse(groupDate, first.getHospitalName(), items);
                 })
                 .toList();
+    }
+
+    private LocalDate resolveReportDate(Medication m) {
+        return m.getPrescriptionDate() != null
+                ? m.getPrescriptionDate()
+                : m.getCreatedAt().toLocalDate();
     }
 
     private LocalDate resolveFromDate(String period) {

@@ -5,6 +5,7 @@ import com.piuda.callcare.domain.medication.dto.request.MedicationUpdateRequest;
 import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationReportGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.service.command.MedicationCommandService;
 import com.piuda.callcare.domain.medication.service.query.MedicationQueryService;
@@ -100,6 +101,18 @@ public class MedicationController {
     ) {
         medicationCommandService.update(userId, medicationId, request);
         return ResponseUtils.ok();
+    }
+
+    @Operation(
+        summary = "복약 기록 리포트",
+        description = "최근 90일간 복약 이력을 병원별로 그룹화해 반환합니다. 같은 약을 연속으로 처방받은 경우(이전 처방 종료일 다음날 = 다음 처방 시작일) 하나로 합산해 총 복용 일수를 계산합니다."
+    )
+    @GetMapping("/report")
+    public ResponseEntity<ApiResponse<List<MedicationReportGroupResponse>>> getReport(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Long seniorId
+    ) {
+        return ResponseUtils.ok(medicationQueryService.getReport(userId, seniorId));
     }
 
     @Operation(summary = "약 삭제", description = "약과 복용 스케줄을 완전 삭제합니다. 복구 불가능합니다.")

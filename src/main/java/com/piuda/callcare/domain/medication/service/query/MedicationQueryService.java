@@ -5,6 +5,8 @@ import com.piuda.callcare.domain.medication.dto.response.MedicationDetailRespons
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteItemResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationReportGroupResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationReportItemResponse;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.repository.MedicationRepository;
 import com.piuda.callcare.domain.senior.repository.SeniorRepository;
@@ -71,6 +73,70 @@ public class MedicationQueryService {
         return toNoteGroupResponses(medications);
     }
 
+    // 최근 90일 복약 기록 리포트 — 연속 처방 합산 후 병원별 그룹 반환
+    public List<MedicationReportGroupResponse> getReport(Long userId, Long seniorId) {
+        if (userId == null) throw new CallCareException(ErrorCode.FORBIDDEN);
+        seniorRepository.findByIdAndUser_Id(seniorId, userId)
+                .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
+
+        LocalDate fromDate = LocalDate.now().minusDays(90); // 최근 90일
+        List<Medication> medications = medicationRepository.findForReport(seniorId, fromDate);
+
+        // (hospitalName|drugName) 단위로 그룹화 — DB 정렬 덕분에 hospitalName·drugName·startDate 순으로 이미 정렬됨
+        Map<String, List<Medication>> byDrug = new LinkedHashMap<>();
+        for (Medication m : medications) {
+            String key = m.getHospitalName() + "|" + m.getDrugName();
+            byDrug.computeIfAbsent(key, k -> new ArrayList<>()).add(m);
+        }
+
+        // 약별로 연속 처방 합산 → 병원별 재그룹화
+        Map<String, List<MedicationReportItemResponse>> byHospital = new LinkedHashMap<>();
+        for (List<Medication> group : byDrug.values()) {
+            String hospitalName = group.get(0).getHospitalName();
+            byHospital.computeIfAbsent(hospitalName, k -> new ArrayList<>())
+                    .addAll(mergeConsecutive(group));
+        }
+
+        return byHospital.entrySet().stream()
+                .map(e -> new MedicationReportGroupResponse(e.getKey(), e.getValue()))
+                .toList();
+    }
+
+    private List<MedicationReportItemResponse> mergeConsecutive(List<Medication> sorted) {
+        List<MedicationReportItemResponse> result = new ArrayList<>();
+        if (sorted.isEmpty()) return result;
+
+        Medication first = sorted.get(0);
+        LocalDate mergedStart = first.getStartDate();
+        LocalDate mergedEnd = first.getEndDate();
+        Integer mergedDays = first.getTotalDays();
+        LocalDate reportDate = resolveReportDate(first);
+
+        for (int i = 1; i < sorted.size(); i++) {
+            Medication curr = sorted.get(i);
+            boolean consecutive = mergedEnd != null && curr.getStartDate() != null
+                    && curr.getStartDate().equals(mergedEnd.plusDays(1));
+            if (consecutive) {
+                mergedEnd = curr.getEndDate();
+                mergedDays = (mergedDays != null && curr.getTotalDays() != null)
+                        ? mergedDays + curr.getTotalDays() : null;
+            } else {
+                result.add(new MedicationReportItemResponse(
+                        first.getDrugName(), first.getDrugType(),
+                        mergedStart, mergedEnd, mergedDays, reportDate));
+                mergedStart = curr.getStartDate();
+                mergedEnd = curr.getEndDate();
+                mergedDays = curr.getTotalDays();
+                reportDate = resolveReportDate(curr);
+                first = curr;
+            }
+        }
+        result.add(new MedicationReportItemResponse(
+                first.getDrugName(), first.getDrugType(),
+                mergedStart, mergedEnd, mergedDays, reportDate));
+        return result;
+    }
+
     private List<MedicationNoteGroupResponse> toNoteGroupResponses(List<Medication> medications) {
         Map<String, List<Medication>> grouped = new LinkedHashMap<>();
         for (Medication m : medications) {
@@ -88,6 +154,12 @@ public class MedicationQueryService {
                     return new MedicationNoteGroupResponse(groupDate, first.getHospitalName(), items);
                 })
                 .toList();
+    }
+
+    private LocalDate resolveReportDate(Medication m) {
+        return m.getPrescriptionDate() != null
+                ? m.getPrescriptionDate()
+                : m.getCreatedAt().toLocalDate();
     }
 
     private LocalDate resolveFromDate(String period) {

@@ -55,6 +55,17 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
                                      @Param("fromDate") LocalDate fromDate,
                                      @Param("isActive") Boolean isActive);
 
+    // 복약 기록 리포트: 최근 90일 이내 약 전체 — 병원·약 이름·시작일 기준 정렬 (연속 합산 로직은 서비스에서 처리)
+    @Query("""
+            SELECT m FROM Medication m
+            WHERE m.senior.id = :seniorId
+              AND m.startDate >= :fromDate
+              AND m.isActive = true
+            ORDER BY m.hospitalName ASC NULLS LAST, m.drugName ASC, m.startDate ASC
+            """)
+    List<Medication> findForReport(@Param("seniorId") Long seniorId,
+                                   @Param("fromDate") LocalDate fromDate);
+
     // 약물노트 그룹 상세 조회: 병원명 + 처방일 조합이 그룹 키 (둘 다 null 가능)
     @Query("""
             SELECT m FROM Medication m

@@ -35,7 +35,7 @@ public class CallLog {
     private LocalDateTime calledAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "varchar(20)")
     private CallStatus status;
 
     @Column(name = "retry_count")
@@ -67,11 +67,35 @@ public class CallLog {
         this.status = status;
     }
 
+    public void markAnswered() {
+        this.status = CallStatus.ANSWERED;
+    }
+
+    public void markNoAnswer() {
+        this.status = CallStatus.NO_ANSWER;
+    }
+
+    public void markFailed() {
+        this.status = CallStatus.FAILED;
+    }
+
     public void incrementRetryCount() {
         this.retryCount++;
     }
 
     public void markAsNotified() {
         this.isNotified = true;
+    }
+
+    // 재시도 발신 시 호출: 새 messageId/발신 시각으로 갱신하고 결과 대기 상태로 되돌린다
+    public void markRetried(String messageId, LocalDateTime calledAt) {
+        this.messageId = messageId;
+        this.calledAt = calledAt;
+        this.status = CallStatus.PENDING;
+        this.retryCount = this.retryCount + 1;
+    }
+
+    public boolean isAnswered() {
+        return this.status == CallStatus.ANSWERED;
     }
 }

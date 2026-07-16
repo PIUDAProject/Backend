@@ -162,6 +162,7 @@ public class MedicationQueryService {
                 : m.getCreatedAt().toLocalDate();
     }
 
+
     private LocalDate resolveFromDate(String period) {
         LocalDate today = LocalDate.now();
         return switch (period == null ? "1y" : period.toLowerCase()) {

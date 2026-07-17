@@ -9,7 +9,6 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.piuda.callcare.domain.calllog.client.VoiceCallSender;
@@ -84,7 +83,6 @@ public class CallReminderCommandService {
         return sendMedicationCall(senior, mealTime, LocalDateTime.now());
     }
 
-    @Transactional
     public void applyCallResult(String messageId, String rawStatus) {
         if (!StringUtils.hasText(messageId)) {
             log.warn("전화 알림 콜백 messageId 누락 - status={}", rawStatus);
@@ -102,17 +100,20 @@ public class CallReminderCommandService {
         if (result == CallResult.ANSWERED) {
             if (callLog.markAnswered()) {
                 completeMealTimeMedicationLogs(callLog);
+                callLogRepository.save(callLog);
             }
             return;
         }
         if (result == CallResult.NO_ANSWER) {
             if (callLog.markNoAnswer()) {
+                callLogRepository.save(callLog);
                 notifyGuardian(callLog);
             }
             return;
         }
         if (result == CallResult.FAILED) {
             if (callLog.markFailed()) {
+                callLogRepository.save(callLog);
                 notifyGuardian(callLog);
             }
         }
@@ -199,26 +200,44 @@ public class CallReminderCommandService {
             return;
         }
 
+        boolean hasRecipient = false;
+        boolean sentAny = false;
+
         String guardianPhoneNumber = callLog.getSenior().getUser().getPhoneNumber();
         if (StringUtils.hasText(guardianPhoneNumber)) {
+            hasRecipient = true;
             String guardianText = "[콜케어] " + callLog.getSenior().getName() + "님의 "
                     + callLog.getMealTime().getDescription()
                     + " 복약 전화 알림이 미수신되었습니다. 확인이 필요합니다.";
-            smsSender.send(senderNumber, guardianPhoneNumber, guardianText);
+            try {
+                smsSender.send(senderNumber, guardianPhoneNumber, guardianText);
+                sentAny = true;
+            } catch (Exception e) {
+                log.error("보호자 SMS 발송 실패 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId(), e);
+            }
         } else {
             log.warn("보호자 전화번호 없음 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId());
         }
 
         String seniorPhoneNumber = callLog.getSenior().getPhoneNumber();
         if (StringUtils.hasText(seniorPhoneNumber)) {
+            hasRecipient = true;
             String seniorText = "[콜케어] " + callLog.getMealTime().getDescription()
                     + " 약 복용 전화 알림을 받지 못했습니다. 약 복용 여부를 확인해주세요.";
-            smsSender.send(senderNumber, seniorPhoneNumber, seniorText);
+            try {
+                smsSender.send(senderNumber, seniorPhoneNumber, seniorText);
+                sentAny = true;
+            } catch (Exception e) {
+                log.error("부모님 SMS 발송 실패 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId(), e);
+            }
         } else {
             log.warn("부모님 전화번호 없음 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId());
         }
-        callLog.markAsNotified();
-        callLogRepository.save(callLog);
+
+        if (sentAny || !hasRecipient) {
+            callLog.markAsNotified();
+            callLogRepository.save(callLog);
+        }
     }
 
     private void validateCallMealTime(MealTime mealTime) {

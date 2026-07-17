@@ -107,15 +107,4 @@ public class CallLog {
         this.isNotified = true;
     }
 
-    // 재시도 발신 시 호출: 새 messageId/발신 시각으로 갱신하고 결과 대기 상태로 되돌린다
-    public void markRetried(String messageId, LocalDateTime calledAt) {
-        this.messageId = messageId;
-        this.calledAt = calledAt;
-        this.status = CallStatus.PENDING;
-        this.retryCount = this.retryCount + 1;
-    }
-
-    public boolean isAnswered() {
-        return this.status == CallStatus.ANSWERED;
-    }
 }

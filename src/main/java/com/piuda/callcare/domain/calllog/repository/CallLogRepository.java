@@ -13,8 +13,13 @@ import java.util.Optional;
 
 public interface CallLogRepository extends JpaRepository<CallLog, Long> {
 
-    // 원래 통화 기록을 찾기 위함
-    Optional<CallLog> findByMessageId(String messageId);
+    @Query("""
+            SELECT cl FROM CallLog cl
+            JOIN FETCH cl.senior s
+            JOIN FETCH s.user u
+            WHERE cl.messageId = :messageId
+            """)
+    Optional<CallLog> findByMessageId(@Param("messageId") String messageId);
 
     @Query("""
             SELECT cl FROM CallLog cl

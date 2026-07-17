@@ -64,6 +64,7 @@ public class HomeCardQueryService {
                 .collect(Collectors.groupingBy(MedicationSchedule::getMealTime, TreeMap::new, Collectors.toList()))
                 .entrySet().stream()
                 .map(entry -> toMealGroup(entry.getKey(), entry.getValue(), mode, takenKeys))
+                .filter(group -> mode != HomeCardMode.TODAY || !group.mealTimeCompleted())
                 .toList();
 
         return new HomeCardResponse(targetDate, mode, mealGroups);

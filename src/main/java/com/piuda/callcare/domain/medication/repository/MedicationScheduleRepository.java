@@ -30,6 +30,21 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
             @Param("date") LocalDate date
     );
 
+    @Query("""
+            SELECT (COUNT(ms) > 0) FROM MedicationSchedule ms
+            JOIN ms.medication m
+            WHERE m.senior.id = :seniorId
+              AND ms.mealTime = :mealTime
+              AND m.isActive = true
+              AND m.startDate <= :date
+              AND m.endDate >= :date
+            """)
+    boolean existsActiveScheduleForCall(
+            @Param("seniorId") Long seniorId,
+            @Param("mealTime") MealTime mealTime,
+            @Param("date") LocalDate date
+    );
+
     // 홈카드용: 해당 날짜에 복용 중(active + 기간 내)인 약의 스케줄을 약과 함께 한 번에 조회 (N+1 방지)
     @Query("""
             SELECT ms FROM MedicationSchedule ms
@@ -42,6 +57,22 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
             """)
     List<MedicationSchedule> findActiveSchedulesForHomeCards(
             @Param("seniorId") Long seniorId,
+            @Param("date") LocalDate date
+    );
+
+    @Query("""
+            SELECT ms FROM MedicationSchedule ms
+            JOIN FETCH ms.medication m
+            WHERE m.senior.id = :seniorId
+              AND ms.mealTime = :mealTime
+              AND m.isActive = true
+              AND m.startDate <= :date
+              AND m.endDate >= :date
+            ORDER BY m.id
+            """)
+    List<MedicationSchedule> findActiveSchedulesForMealTime(
+            @Param("seniorId") Long seniorId,
+            @Param("mealTime") MealTime mealTime,
             @Param("date") LocalDate date
     );
 }

@@ -30,18 +30,16 @@ class NotificationTimeCalculatorTest {
 	}
 
 	@Test
-	@DisplayName("정상 케이스: 식사 08:00이면 최초 발신은 08:30, 재시도는 08:40")
-	void firstCall_and_retry_for_normal_time() {
+	@DisplayName("정상 케이스: 식사 08:00이면 최초 발신은 08:30")
+	void firstCall_for_normal_time() {
 		// Given
 		Senior senior = seniorWithTimes(LocalTime.of(8, 0), LocalTime.of(12, 0), LocalTime.of(18, 0));
 
 		// When
 		LocalDateTime firstCall = NotificationTimeCalculator.firstCallTime(senior, MealTime.BREAKFAST, BASE_DATE);
-		LocalDateTime retryCall = NotificationTimeCalculator.retryCallTime(firstCall);
 
 		// Then
 		assertThat(firstCall).isEqualTo(LocalDateTime.of(2026, 6, 29, 8, 30));
-		assertThat(retryCall).isEqualTo(LocalDateTime.of(2026, 6, 29, 8, 40));
 	}
 
 	@Test
@@ -55,21 +53,6 @@ class NotificationTimeCalculatorTest {
 
 		// Then
 		assertThat(firstCall).isEqualTo(LocalDateTime.of(2026, 6, 30, 0, 20));
-	}
-
-	@Test
-	@DisplayName("경계값: 식사 23:55면 최초 발신 00:25, 재시도가 자정을 넘겨 00:35이 된다")
-	void retry_crosses_midnight() {
-		// Given
-		Senior senior = seniorWithTimes(LocalTime.of(8, 0), LocalTime.of(12, 0), LocalTime.of(23, 55));
-
-		// When
-		LocalDateTime firstCall = NotificationTimeCalculator.firstCallTime(senior, MealTime.DINNER, BASE_DATE);
-		LocalDateTime retryCall = NotificationTimeCalculator.retryCallTime(senior, MealTime.DINNER, BASE_DATE);
-
-		// Then
-		assertThat(firstCall).isEqualTo(LocalDateTime.of(2026, 6, 30, 0, 25));
-		assertThat(retryCall).isEqualTo(LocalDateTime.of(2026, 6, 30, 0, 35));
 	}
 
 	@Test

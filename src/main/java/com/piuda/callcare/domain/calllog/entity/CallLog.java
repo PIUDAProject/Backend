@@ -10,10 +10,17 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "call_log")
+@Table(
+        name = "call_log",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_call_log_senior_meal_date",
+                columnNames = {"senior_id", "meal_time", "call_date"}
+        )
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class CallLog {
@@ -34,8 +41,11 @@ public class CallLog {
     @Column(name = "called_at", nullable = false)
     private LocalDateTime calledAt;
 
+    @Column(name = "call_date", nullable = false)
+    private LocalDate callDate;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "varchar(20)")
     private CallStatus status;
 
     @Column(name = "retry_count")
@@ -52,10 +62,11 @@ public class CallLog {
 
     @Builder
     public CallLog(Senior senior, MealTime mealTime, LocalDateTime calledAt,
-                   CallStatus status, Integer retryCount, String messageId, Boolean isNotified) {
+                   LocalDate callDate, CallStatus status, Integer retryCount, String messageId, Boolean isNotified) {
         this.senior = senior;
         this.mealTime = mealTime;
         this.calledAt = calledAt;
+        this.callDate = callDate != null ? callDate : calledAt.toLocalDate();
         this.status = status;
         this.retryCount = retryCount;
         this.messageId = messageId;
@@ -63,15 +74,37 @@ public class CallLog {
         this.createdAt = LocalDateTime.now();
     }
 
-    public void updateStatus(CallStatus status) {
-        this.status = status;
+    public void markSent(String messageId, LocalDateTime calledAt) {
+        this.messageId = messageId;
+        this.calledAt = calledAt;
     }
 
-    public void incrementRetryCount() {
-        this.retryCount++;
+    public boolean markAnswered() {
+        if (this.status.isTerminal()) {
+            return false;
+        }
+        this.status = CallStatus.ANSWERED;
+        return true;
+    }
+
+    public boolean markNoAnswer() {
+        if (this.status.isTerminal()) {
+            return false;
+        }
+        this.status = CallStatus.NO_ANSWER;
+        return true;
+    }
+
+    public boolean markFailed() {
+        if (this.status.isTerminal()) {
+            return false;
+        }
+        this.status = CallStatus.FAILED;
+        return true;
     }
 
     public void markAsNotified() {
         this.isNotified = true;
     }
+
 }

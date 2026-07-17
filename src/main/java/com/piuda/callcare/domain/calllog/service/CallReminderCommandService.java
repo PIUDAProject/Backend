@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -29,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class CallReminderCommandService {
 
@@ -55,7 +56,11 @@ public class CallReminderCommandService {
                 continue;
             }
             for (MealTime mealTime : CALL_MEAL_TIMES) {
-                sendFirstCallIfDue(senior, mealTime, today, now);
+                try {
+                    sendFirstCallIfDue(senior, mealTime, today, now);
+                } catch (Exception e) {
+                    log.error("전화 알림 발신 처리 실패 - seniorId={}, mealTime={}", senior.getId(), mealTime, e);
+                }
             }
         }
     }
@@ -79,6 +84,7 @@ public class CallReminderCommandService {
         return sendMedicationCall(senior, mealTime, LocalDateTime.now());
     }
 
+    @Transactional
     public void applyCallResult(String messageId, String rawStatus) {
         if (!StringUtils.hasText(messageId)) {
             log.warn("전화 알림 콜백 messageId 누락 - status={}", rawStatus);
@@ -94,18 +100,21 @@ public class CallReminderCommandService {
 
         CallResult result = CallResult.from(rawStatus);
         if (result == CallResult.ANSWERED) {
-            callLog.markAnswered();
-            completeMealTimeMedicationLogs(callLog);
+            if (callLog.markAnswered()) {
+                completeMealTimeMedicationLogs(callLog);
+            }
             return;
         }
         if (result == CallResult.NO_ANSWER) {
-            callLog.markNoAnswer();
-            notifyGuardian(callLog);
+            if (callLog.markNoAnswer()) {
+                notifyGuardian(callLog);
+            }
             return;
         }
         if (result == CallResult.FAILED) {
-            callLog.markFailed();
-            notifyGuardian(callLog);
+            if (callLog.markFailed()) {
+                notifyGuardian(callLog);
+            }
         }
     }
 
@@ -119,13 +128,6 @@ public class CallReminderCommandService {
             return;
         }
 
-        LocalDateTime startOfDay = today.atStartOfDay();
-        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
-        if (callLogRepository.existsBySenior_IdAndMealTimeAndCreatedAtBetween(
-                senior.getId(), mealTime, startOfDay, endOfDay)) {
-            return;
-        }
-
         sendMedicationCall(senior, mealTime, now);
     }
 
@@ -134,24 +136,50 @@ public class CallReminderCommandService {
             throw new CallCareException(ErrorCode.INVALID_PARAMETER);
         }
 
-        String messageId = voiceCallSender.call(
-                senderNumber,
-                senior.getPhoneNumber(),
-                "콜케어 복약 알림입니다.",
-                bodyMessage(mealTime)
-                );
+        Optional<CallLog> preemptedCallLog = preemptCallLog(senior, mealTime, calledAt);
+        if (preemptedCallLog.isEmpty()) {
+            log.info("전화 알림 중복 발신 스킵 - seniorId={}, mealTime={}, callDate={}",
+                    senior.getId(), mealTime, calledAt.toLocalDate());
+            return null;
+        }
 
-        callLogRepository.save(CallLog.builder()
-                .senior(senior)
-                .mealTime(mealTime)
-                .calledAt(calledAt)
-                .status(CallStatus.PENDING)
-                .retryCount(0)
-                .messageId(messageId)
-                .isNotified(false)
-                .build());
+        CallLog callLog = preemptedCallLog.get();
+        String messageId;
+        try {
+            messageId = voiceCallSender.call(
+                    senderNumber,
+                    senior.getPhoneNumber(),
+                    "콜케어 복약 알림입니다.",
+                    bodyMessage(mealTime)
+            );
+        } catch (Exception e) {
+            callLog.markFailed();
+            callLogRepository.save(callLog);
+            log.error("SOLAPI 전화 알림 발신 실패 - callLogId={}, seniorId={}, mealTime={}",
+                    callLog.getId(), senior.getId(), mealTime, e);
+            throw e;
+        }
 
+        callLog.markSent(messageId, calledAt);
+        callLogRepository.save(callLog);
         return messageId;
+    }
+
+    private Optional<CallLog> preemptCallLog(Senior senior, MealTime mealTime, LocalDateTime calledAt) {
+        try {
+            return Optional.of(callLogRepository.saveAndFlush(CallLog.builder()
+                    .senior(senior)
+                    .mealTime(mealTime)
+                    .calledAt(calledAt)
+                    .callDate(calledAt.toLocalDate())
+                    .status(CallStatus.PENDING)
+                    .retryCount(0)
+                    .messageId(null)
+                    .isNotified(false)
+                    .build()));
+        } catch (DataIntegrityViolationException e) {
+            return Optional.empty();
+        }
     }
 
     private String bodyMessage(MealTime mealTime) {
@@ -172,24 +200,25 @@ public class CallReminderCommandService {
         }
 
         String guardianPhoneNumber = callLog.getSenior().getUser().getPhoneNumber();
-        if (!StringUtils.hasText(guardianPhoneNumber)) {
+        if (StringUtils.hasText(guardianPhoneNumber)) {
+            String guardianText = "[콜케어] " + callLog.getSenior().getName() + "님의 "
+                    + callLog.getMealTime().getDescription()
+                    + " 복약 전화 알림이 미수신되었습니다. 확인이 필요합니다.";
+            smsSender.send(senderNumber, guardianPhoneNumber, guardianText);
+        } else {
             log.warn("보호자 전화번호 없음 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId());
-            callLog.markAsNotified();
-            return;
         }
-
-        String guardianText = "[콜케어] " + callLog.getSenior().getName() + "님의 "
-                + callLog.getMealTime().getDescription()
-                + " 복약 전화 알림이 미수신되었습니다. 확인이 필요합니다.";
-        smsSender.send(senderNumber, guardianPhoneNumber, guardianText);
 
         String seniorPhoneNumber = callLog.getSenior().getPhoneNumber();
         if (StringUtils.hasText(seniorPhoneNumber)) {
             String seniorText = "[콜케어] " + callLog.getMealTime().getDescription()
                     + " 약 복용 전화 알림을 받지 못했습니다. 약 복용 여부를 확인해주세요.";
             smsSender.send(senderNumber, seniorPhoneNumber, seniorText);
+        } else {
+            log.warn("부모님 전화번호 없음 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId());
         }
         callLog.markAsNotified();
+        callLogRepository.save(callLog);
     }
 
     private void validateCallMealTime(MealTime mealTime) {

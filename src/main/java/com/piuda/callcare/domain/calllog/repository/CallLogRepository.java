@@ -2,7 +2,6 @@ package com.piuda.callcare.domain.calllog.repository;
 
 import com.piuda.callcare.domain.calllog.entity.CallLog;
 import com.piuda.callcare.domain.calllog.enums.CallStatus;
-import com.piuda.callcare.domain.medication.enums.MealTime;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,10 +12,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CallLogRepository extends JpaRepository<CallLog, Long> {
-
-    // 최초 발신 여부 판단
-    boolean existsBySenior_IdAndMealTimeAndCreatedAtBetween(
-            Long seniorId, MealTime mealTime, LocalDateTime createdFrom, LocalDateTime createdTo);
 
     // 원래 통화 기록을 찾기 위함
     Optional<CallLog> findByMessageId(String messageId);

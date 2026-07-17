@@ -12,4 +12,8 @@ public enum CallStatus {
     FAILED("발신 실패");
 
     private final String description;
+
+    public boolean isTerminal() {
+        return this == ANSWERED || this == NO_ANSWER || this == FAILED;
+    }
 }

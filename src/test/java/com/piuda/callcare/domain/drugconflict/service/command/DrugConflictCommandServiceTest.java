@@ -64,8 +64,8 @@ class DrugConflictCommandServiceTest {
 
         given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
         given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
-        given(drugConflictRepository.existsBySenior_IdAndMedication1_IdAndMedication2_Id(anyLong(), anyLong(), anyLong()))
-                .willReturn(false);
+        given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(anyLong(), anyLong(), anyLong()))
+                .willReturn(Optional.empty());
 
         // When
         drugConflictCommandService.analyze(SENIOR_ID);
@@ -81,21 +81,31 @@ class DrugConflictCommandServiceTest {
     }
 
     @Test
-    @DisplayName("이미 저장된 조합이면 중복 저장하지 않는다")
-    void analyze_skipsAlreadySavedPair() {
+    @DisplayName("이미 저장된 조합이면 신규 저장 없이 최신 분석 결과로 갱신(upsert)한다")
+    void analyze_updatesExistingPair_insteadOfSaving() {
+        // Given - 기존 행은 옛 등급(주의)이지만, 재분석은 금기로 판정됨 → 기존 행이 갱신돼야 함
         Senior senior = senior();
         Medication a = medication(20L, drugInfo("코감기약", null,
                 "항히스타민제를 함유하는 내복약과 함께 복용하지 마십시오."));
         Medication b = medication(10L, drugInfo("알레르기약", "[01410]항히스타민제", null));
+        DrugConflict existing = DrugConflict.builder()
+                .senior(senior).medication1(b).medication2(a)
+                .severity(ConflictSeverity.CAUTION)
+                .conflictDescription("옛 설명")
+                .build();
 
         given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
         given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
-        given(drugConflictRepository.existsBySenior_IdAndMedication1_IdAndMedication2_Id(anyLong(), anyLong(), anyLong()))
-                .willReturn(true);
+        given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(SENIOR_ID, 10L, 20L))
+                .willReturn(Optional.of(existing));
 
+        // When
         drugConflictCommandService.analyze(SENIOR_ID);
 
+        // Then - save는 호출되지 않고 기존 엔티티가 dirty checking으로 갱신됨
         then(drugConflictRepository).should(never()).save(any());
+        assertThat(existing.getSeverity()).isEqualTo(ConflictSeverity.CONTRAINDICATED);
+        assertThat(existing.getConflictDescription()).contains("항히스타민제");
     }
 
     @Test
@@ -111,6 +121,54 @@ class DrugConflictCommandServiceTest {
         drugConflictCommandService.analyze(SENIOR_ID);
 
         then(drugConflictRepository).should(never()).save(any());
+    }
+
+    @Test
+    @DisplayName("재분석에서 더 이상 매칭되지 않는 기존 충돌은 삭제한다")
+    void analyze_deletesStaleConflict_whenPairNoLongerMatches() {
+        // Given - 두 약 모두 분석 대상이지만 이번엔 충돌 판정이 안 남 → 기존 행은 stale
+        Senior senior = senior();
+        Medication a = medication(10L, drugInfo("비타민C정", "[03160]혼합비타민제", "상호작용 정보 없음."));
+        Medication b = medication(20L, drugInfo("소화제", "[02330]효소제제", "상호작용 정보 없음."));
+        DrugConflict stale = DrugConflict.builder()
+                .senior(senior).medication1(a).medication2(b)
+                .severity(ConflictSeverity.CAUTION)
+                .conflictDescription("옛 설명")
+                .build();
+
+        given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
+        given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
+        given(drugConflictRepository.findAllWithMedicationsForReanalysis(SENIOR_ID)).willReturn(List.of(stale));
+
+        // When
+        drugConflictCommandService.analyze(SENIOR_ID);
+
+        // Then
+        then(drugConflictRepository).should(times(1)).deleteAll(List.of(stale));
+    }
+
+    @Test
+    @DisplayName("분석 대상이 아닌 약(비활성·삭제)이 낀 충돌은 매칭되지 않아도 삭제하지 않는다")
+    void analyze_keepsConflict_whenMedicationNotInAnalysisScope() {
+        // Given - 활성 약은 a 하나뿐, 기존 행은 이미 비활성이 된 약(99L)과 엮여 있음
+        Senior senior = senior();
+        Medication a = medication(10L, drugInfo("비타민C정", "[03160]혼합비타민제", "상호작용 정보 없음."));
+        Medication inactive = medication(99L, drugInfo("옛날약", "[01410]항히스타민제", null));
+        DrugConflict old = DrugConflict.builder()
+                .senior(senior).medication1(a).medication2(inactive)
+                .severity(ConflictSeverity.CONTRAINDICATED)
+                .conflictDescription("옛 설명")
+                .build();
+
+        given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
+        given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a));
+        given(drugConflictRepository.findAllWithMedicationsForReanalysis(SENIOR_ID)).willReturn(List.of(old));
+
+        // When
+        drugConflictCommandService.analyze(SENIOR_ID);
+
+        // Then
+        then(drugConflictRepository).should(never()).deleteAll(any());
     }
 
     @Test

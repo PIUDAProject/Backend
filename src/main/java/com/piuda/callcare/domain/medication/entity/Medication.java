@@ -11,7 +11,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
+// 소프트 삭제: medication_log·medication_schedule·drug_conflict가 이 행을 FK(nullable=false)로 참조하므로
+// 물리 삭제는 FK 제약 위반을 낸다. DELETE 요청을 deleted_at 갱신으로 대체하고 참조 행은 그대로 보존한다.
+// 노출 규칙은 "삭제일 당일부터 앞으로만 숨김" — 지난 복약 이력에는 그대로 남는다.
+// 전역 필터(@SQLRestriction)를 쓰지 않는 이유: 과거 조회까지 무조건 걸러버려 이력이 사라진다.
+// 대신 조회 쿼리마다 deleted_at 조건을 명시한다(현재 시점 조회는 IS NULL, 날짜 기준 조회는 그 날짜와 비교).
 @Entity
 @Table(name = "medication")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -76,6 +82,9 @@ public class Medication extends BaseEntity {
     @Column(name = "ocr_result_id")
     private Long ocrResultId; // OCR 경로로 등록된 경우 연결 ID (직접 등록이면 null)
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt; // 소프트 삭제 시각. null이면 유효한 행 (builder로 받지 않고 softDelete()로만 채운다)
+
     @Builder
     public Medication(Senior senior, String hospitalName, DrugInfo drugInfo,
         String drugName, String drugNickname, String drugType,
@@ -117,5 +126,12 @@ public class Medication extends BaseEntity {
 
     public void deactivate() {
         this.isActive = false;
+    }
+
+    // 소프트 삭제 — 물리 삭제 대신 시각만 남긴다. 이미 삭제된 약은 시각을 덮어쓰지 않는다.
+    public void softDelete() {
+        if (this.deletedAt == null) {
+            this.deletedAt = LocalDateTime.now();
+        }
     }
 }

@@ -45,8 +45,8 @@ public class MedicationToggleCommandService {
             throw new CallCareException(ErrorCode.MEDICATION_LOG_TOGGLE_NOT_TODAY);
         }
 
-        // 2) 약 존재 검증
-        Medication medication = medicationRepository.findById(medicationId)
+        // 2) 약 존재 검증 (삭제된 약은 없는 것으로 취급)
+        Medication medication = medicationRepository.findByIdAndDeletedAtIsNull(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
 
         // 3) 그 약에 해당 시간대의 오늘 활성 스케줄이 실제 존재하는지 검증 (완료 재계산과 동일 기준)
@@ -76,7 +76,7 @@ public class MedicationToggleCommandService {
     // 홈카드와 동일한 완료 규칙으로 해당 시간대 완료 여부를 산출 → CompletedStatus로 변환
     private CompletedStatus recalculateMealTimeStatus(Long seniorId, LocalDate date, MealTime mealTime) {
         List<MedicationSchedule> slotSchedules = medicationScheduleRepository
-                .findActiveSchedulesForHomeCards(seniorId, date).stream()
+                .findActiveSchedulesForHomeCards(seniorId, date, date.plusDays(1).atStartOfDay()).stream()
                 .filter(schedule -> schedule.getMealTime() == mealTime)
                 .toList();
 

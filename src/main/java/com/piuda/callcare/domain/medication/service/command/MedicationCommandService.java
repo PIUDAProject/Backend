@@ -112,7 +112,7 @@ public class MedicationCommandService {
     // 약 정보 수정 — timesPerDay 변경 시 스케줄 삭제 후 재생성
     @Transactional
     public void update(Long userId, Long medicationId, MedicationUpdateRequest request) {
-        Medication medication = medicationRepository.findById(medicationId)
+        Medication medication = medicationRepository.findByIdAndDeletedAtIsNull(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
         seniorRepository.findByIdAndUser_Id(medication.getSenior().getId(), userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.FORBIDDEN));
@@ -138,15 +138,15 @@ public class MedicationCommandService {
         }
     }
 
-    // 약 하드 삭제 — 스케줄 먼저 제거 후 Medication 완전 삭제
+    // 약 소프트 삭제 — deleted_at만 채우고 스케줄·복약 로그·충돌 행은 그대로 남긴다(이력 보존 + FK 위반 회피).
+    // 삭제일 당일부터 약물노트·상세·홈카드·충돌 목록에서 빠지고, 그 이전 날짜 조회와 리포트에는 계속 남는다.
     @Transactional
     public void delete(Long userId, Long medicationId) {
-        Medication medication = medicationRepository.findById(medicationId)
+        Medication medication = medicationRepository.findByIdAndDeletedAtIsNull(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
         seniorRepository.findByIdAndUser_Id(medication.getSenior().getId(), userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.FORBIDDEN));
-        medicationScheduleRepository.deleteAllByMedication_Id(medicationId);
-        medicationRepository.delete(medication);
+        medication.softDelete();
     }
 
     private String buildUsageStorageInfo(DrugInfo drugInfo) {

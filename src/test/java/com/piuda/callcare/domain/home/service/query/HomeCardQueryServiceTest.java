@@ -25,7 +25,6 @@ import com.piuda.callcare.domain.home.dto.response.MealGroupResponse;
 import com.piuda.callcare.domain.home.enums.CompletedStatus;
 import com.piuda.callcare.domain.home.enums.HomeCardMode;
 import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator;
-import com.piuda.callcare.domain.hospital.entity.Hospital;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 import com.piuda.callcare.domain.medication.enums.MealTime;
@@ -64,8 +63,7 @@ class HomeCardQueryServiceTest {
     @DisplayName("오늘: 식사시간/병원으로 그룹화하고 로그로 isTaken·mealTimeCompleted를 합성한다")
     void todayMode_groupsAndSynthesizesCompletion() {
         // Given - 아침: 서울내과(약10) + 병원없음(약11), 점심: 서울내과(약10)
-        Hospital seoul = hospital(100L, "서울내과");
-        Medication med10 = medication(10L, seoul);
+        Medication med10 = medication(10L, "서울내과");
         Medication med11 = medication(11L, null);
 
         List<MedicationSchedule> schedules = List.of(
@@ -74,7 +72,7 @@ class HomeCardQueryServiceTest {
                 schedule(med10, MealTime.LUNCH)
         );
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today)).willReturn(schedules);
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay())).willReturn(schedules);
         // 아침 약10 복용 완료(약11 미완료), 점심 약10 복용 완료
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
                 .willReturn(List.of(
@@ -111,9 +109,9 @@ class HomeCardQueryServiceTest {
     void futureMode_noLogQuery_allFalse() {
         // Given
         LocalDate tomorrow = today.plusDays(1);
-        Medication med10 = medication(10L, hospital(100L, "서울내과"));
+        Medication med10 = medication(10L, "서울내과");
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, tomorrow))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, tomorrow, tomorrow.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.BREAKFAST)));
 
         // When
@@ -131,10 +129,10 @@ class HomeCardQueryServiceTest {
     void pastMode_setsCompletedStatus() {
         // Given
         LocalDate yesterday = today.minusDays(1);
-        Medication med10 = medication(10L, hospital(100L, "서울내과"));
-        Medication med11 = medication(11L, hospital(100L, "서울내과"));
+        Medication med10 = medication(10L, "서울내과");
+        Medication med11 = medication(11L, "서울내과");
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, yesterday))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, yesterday, yesterday.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.DINNER), schedule(med11, MealTime.DINNER)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, yesterday))
                 .willReturn(List.of(log(med10, MealTime.DINNER, true, yesterday)));
@@ -158,7 +156,7 @@ class HomeCardQueryServiceTest {
         // Given
         Medication med10 = medication(10L, null);
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.BEDTIME), schedule(med10, MealTime.BREAKFAST)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today)).willReturn(List.of());
 
@@ -180,20 +178,14 @@ class HomeCardQueryServiceTest {
         assertThatThrownBy(() -> homeCardQueryService.getHomeCards(SENIOR_ID, today))
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SENIOR_NOT_FOUND);
-        then(medicationScheduleRepository).should(never()).findActiveSchedulesForHomeCards(anyLong(), any());
+        then(medicationScheduleRepository).should(never()).findActiveSchedulesForHomeCards(anyLong(), any(), any());
     }
 
     // ---- fixtures ----
 
-    private Hospital hospital(Long id, String name) {
-        Hospital h = Hospital.builder().name(name).build();
-        ReflectionTestUtils.setField(h, "id", id);
-        return h;
-    }
-
-    private Medication medication(Long id, Hospital hospital) {
+    private Medication medication(Long id, String hospitalName) {
         Medication m = Medication.builder()
-                .hospital(hospital)
+                .hospitalName(hospitalName)
                 .drugName("약" + id)
                 .drugNickname("별명")
                 .drugType("타입")

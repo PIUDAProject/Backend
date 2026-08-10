@@ -6,7 +6,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,18 +91,16 @@ public class DrugConflictCommandService {
             return;
         }
 
-        try {
-            drugConflictRepository.save(DrugConflict.builder()
-                    .senior(senior)
-                    .medication1(first)
-                    .medication2(second)
-                    .severity(match.severity())
-                    .conflictDescription(match.description())
-                    .build());
-        } catch (DataIntegrityViolationException e) {
-            // 동시 요청으로 같은 조합이 먼저 INSERT된 레이스(uk_drug_conflict_senior_med1_med2).
-            // 정합성은 UNIQUE 제약이 보장하므로 이번 요청은 저장을 건너뛴다(삼중 방어 유지).
-        }
+        // 동시 요청 레이스는 UNIQUE 제약(uk_drug_conflict_senior_med1_med2)이 막는다.
+        // 제약 위반 시 예외를 잡지 않고 전파한다 — 잡아도 세션이 rollback-only라 요청은 어차피 실패하고,
+        // analyze()는 멱등하므로 재요청하면 위 existing 경로로 정상 처리된다.
+        drugConflictRepository.save(DrugConflict.builder()
+                .senior(senior)
+                .medication1(first)
+                .medication2(second)
+                .severity(match.severity())
+                .conflictDescription(match.description())
+                .build());
     }
 
     // 순서 무관 비교용 약 쌍 키. 저장 정규화 규칙과 동일하게 (작은 id, 큰 id)로 맞춘다.

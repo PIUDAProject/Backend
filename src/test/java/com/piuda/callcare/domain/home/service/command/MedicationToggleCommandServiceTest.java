@@ -65,13 +65,13 @@ class MedicationToggleCommandServiceTest {
     void toggle_firstCheck_insertsTrueAndCompleted() {
         // Given - 약 1개뿐인 시간대, 토글 후 그 약이 복용 완료
         Medication med = medication(MED_ID);
-        given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
+        given(medicationRepository.findByIdAndDeletedAtIsNull(MED_ID)).willReturn(Optional.of(med));
         given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.BREAKFAST, today))
                 .willReturn(true);
         given(medicationLogRepository.findByMedication_IdAndTakenDateAndMealTime(MED_ID, today, MealTime.BREAKFAST))
                 .willReturn(Optional.empty());
         // 재계산: 그 시간대 스케줄 = 약1개, 로그 = 복용완료
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med, MealTime.BREAKFAST)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
                 .willReturn(List.of(log(med, MealTime.BREAKFAST, true)));
@@ -91,13 +91,13 @@ class MedicationToggleCommandServiceTest {
     void toggle_uncheck_writesFalseAndIncomplete() {
         // Given
         Medication med = medication(MED_ID);
-        given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
+        given(medicationRepository.findByIdAndDeletedAtIsNull(MED_ID)).willReturn(Optional.of(med));
         given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.DINNER, today))
                 .willReturn(true);
         given(medicationLogRepository.findByMedication_IdAndTakenDateAndMealTime(MED_ID, today, MealTime.DINNER))
                 .willReturn(Optional.of(log(med, MealTime.DINNER, true)));
         // 재계산: 해제 후 로그는 미복용
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med, MealTime.DINNER)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
                 .willReturn(List.of(log(med, MealTime.DINNER, false)));
@@ -127,7 +127,7 @@ class MedicationToggleCommandServiceTest {
     @Test
     @DisplayName("예외: 약이 없으면 MEDICATION_NOT_FOUND")
     void toggle_throws_whenMedicationNotFound() {
-        given(medicationRepository.findById(MED_ID)).willReturn(Optional.empty());
+        given(medicationRepository.findByIdAndDeletedAtIsNull(MED_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> medicationToggleCommandService.toggle(MED_ID, MealTime.BREAKFAST, today))
                 .isInstanceOf(CallCareException.class)
@@ -138,7 +138,7 @@ class MedicationToggleCommandServiceTest {
     @DisplayName("예외: 그 시간대 스케줄이 없으면 MEDICATION_SCHEDULE_NOT_FOUND")
     void toggle_throws_whenScheduleNotFound() {
         Medication med = medication(MED_ID);
-        given(medicationRepository.findById(MED_ID)).willReturn(Optional.of(med));
+        given(medicationRepository.findByIdAndDeletedAtIsNull(MED_ID)).willReturn(Optional.of(med));
         given(medicationScheduleRepository.existsActiveScheduleForToggle(MED_ID, MealTime.LUNCH, today))
                 .willReturn(false);
 

@@ -34,7 +34,7 @@ public class MedicationQueryService {
     // 약 단건 상세 조회 — 재등록 화면 프리필용
     public MedicationDetailResponse getDetail(Long userId, Long medicationId) {
         if (userId == null) throw new CallCareException(ErrorCode.FORBIDDEN);
-        Medication medication = medicationRepository.findById(medicationId)
+        Medication medication = medicationRepository.findByIdAndDeletedAtIsNull(medicationId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.MEDICATION_NOT_FOUND));
         seniorRepository.findByIdAndUser_Id(medication.getSenior().getId(), userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.FORBIDDEN));

@@ -72,7 +72,7 @@ class HomeCardQueryServiceTest {
                 schedule(med10, MealTime.LUNCH)
         );
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today)).willReturn(schedules);
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay())).willReturn(schedules);
         // 아침 약10 복용 완료(약11 미완료), 점심 약10 복용 완료
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
                 .willReturn(List.of(
@@ -108,7 +108,7 @@ class HomeCardQueryServiceTest {
         LocalDate tomorrow = today.plusDays(1);
         Medication med10 = medication(10L, "서울내과");
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, tomorrow))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, tomorrow, tomorrow.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.BREAKFAST)));
 
         // When
@@ -129,7 +129,7 @@ class HomeCardQueryServiceTest {
         Medication med10 = medication(10L, "서울내과");
         Medication med11 = medication(11L, "서울내과");
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, yesterday))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, yesterday, yesterday.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.DINNER), schedule(med11, MealTime.DINNER)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, yesterday))
                 .willReturn(List.of(log(med10, MealTime.DINNER, true, yesterday)));
@@ -153,7 +153,7 @@ class HomeCardQueryServiceTest {
         // Given
         Medication med10 = medication(10L, null);
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
-        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today))
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
                 .willReturn(List.of(schedule(med10, MealTime.BEDTIME), schedule(med10, MealTime.BREAKFAST)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today)).willReturn(List.of());
 
@@ -175,7 +175,7 @@ class HomeCardQueryServiceTest {
         assertThatThrownBy(() -> homeCardQueryService.getHomeCards(SENIOR_ID, today))
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SENIOR_NOT_FOUND);
-        then(medicationScheduleRepository).should(never()).findActiveSchedulesForHomeCards(anyLong(), any());
+        then(medicationScheduleRepository).should(never()).findActiveSchedulesForHomeCards(anyLong(), any(), any());
     }
 
     // ---- fixtures ----

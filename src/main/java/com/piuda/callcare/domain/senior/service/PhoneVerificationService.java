@@ -33,7 +33,10 @@ public class PhoneVerificationService {
     @Value("${coolsms.sender}")
     private String sender;
 
-    public void sendVerificationCode(String phoneNumber) {
+    @Value("${coolsms.mock-enabled:false}")
+    private boolean mockEnabled;
+
+    public String sendVerificationCode(String phoneNumber) {
         String normalizedPhoneNumber = normalizePhoneNumber(phoneNumber);
 
         // 재전송 남용/문자 폭탄 방지: 같은 번호로는 쿨다운 동안 재발송 불가
@@ -55,6 +58,7 @@ public class PhoneVerificationService {
             // 이전 시도 횟수 초기화
             redisTemplate.delete(ATTEMPT_PREFIX + normalizedPhoneNumber);
             log.info("SMS 인증번호 발송 완료 - phoneNumber: {}", PhoneMaskUtil.mask(normalizedPhoneNumber));
+            return mockEnabled ? code : null;
         } catch (Exception e) {
             redisTemplate.delete(codeKey);
             redisTemplate.delete(COOLDOWN_PREFIX + normalizedPhoneNumber);

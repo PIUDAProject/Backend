@@ -22,7 +22,7 @@ spring:
     uris: ${PROD_ES_URI}
 
 coolsms:
-  mock-enabled: false
+  mock-enabled: ${COOLSMS_MOCK_ENABLED:true}
 
 management:
   endpoints:

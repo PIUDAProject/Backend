@@ -3,6 +3,7 @@ package com.piuda.callcare.domain.senior.controller;
 import com.piuda.callcare.domain.senior.dto.request.PhoneVerificationSendRequest;
 import com.piuda.callcare.domain.senior.dto.request.SeniorCreateRequest;
 import com.piuda.callcare.domain.senior.dto.request.SeniorMealTimeUpdateRequest;
+import com.piuda.callcare.domain.senior.dto.response.PhoneVerificationSendResponse;
 import com.piuda.callcare.domain.senior.dto.response.SeniorResponse;
 import com.piuda.callcare.domain.senior.service.PhoneVerificationService;
 import com.piuda.callcare.domain.senior.service.command.SeniorCommandService;
@@ -30,11 +31,11 @@ public class SeniorController {
             description = "부모님 전화번호로 6자리 SMS 인증번호를 발송합니다. 인증번호는 3분간 유효하며, 부모님 정보 등록 시 verificationCode로 검증합니다."
     )
     @PostMapping("/phone-verification")
-    public ResponseEntity<ApiResponse<Void>> sendPhoneVerificationCode(
+    public ResponseEntity<ApiResponse<PhoneVerificationSendResponse>> sendPhoneVerificationCode(
             @RequestBody @Valid PhoneVerificationSendRequest request
     ) {
-        phoneVerificationService.sendVerificationCode(request.phoneNumber());
-        return ResponseUtils.ok();
+        String verificationCode = phoneVerificationService.sendVerificationCode(request.phoneNumber());
+        return ResponseUtils.ok(new PhoneVerificationSendResponse(verificationCode));
     }
 
     @Operation(

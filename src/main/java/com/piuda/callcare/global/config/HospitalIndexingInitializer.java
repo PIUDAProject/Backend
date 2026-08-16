@@ -25,7 +25,7 @@ public class HospitalIndexingInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         try {
-            long dbCount = hospitalRepository.count();
+            long dbCount = hospitalRepository.countByActiveTrue();
             long esCount = hospitalSearchRepository.count();
 
             if (esCount > 0 && esCount == dbCount) {
@@ -37,7 +37,7 @@ public class HospitalIndexingInitializer implements CommandLineRunner {
 
             hospitalSearchRepository.deleteAll();
 
-            List<HospitalDocument> documents = hospitalRepository.findAll()
+            List<HospitalDocument> documents = hospitalRepository.findAllByActiveTrue()
                     .stream()
                     .map(hospitalConverter::toDocument)
                     .toList();

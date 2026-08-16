@@ -55,3 +55,6 @@ notification:
   delayed-queue:
     poller-enabled: ${NOTIFICATION_DELAYED_QUEUE_POLLER_ENABLED:true}
     poll-interval-ms: ${NOTIFICATION_DELAYED_QUEUE_POLL_INTERVAL_MS:1000}
+
+fcm:
+  service-account-key-path: ${FCM_SERVICE_ACCOUNT_KEY_PATH:}

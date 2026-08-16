@@ -25,7 +25,8 @@ public class FcmToken extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "token", nullable = false)
+    // 같은 토큰이 여러 행으로 쌓이면 같은 기기에 중복 발송되므로 unique. FCM 토큰은 기본 255자를 넘길 수 있어 512
+    @Column(name = "token", nullable = false, unique = true, length = 512)
     private String token;
 
     @Enumerated(EnumType.STRING)
@@ -39,6 +40,13 @@ public class FcmToken extends BaseEntity {
     public FcmToken(User user, String token, DeviceType deviceType) {
         this.user = user;
         this.token = token;
+        this.deviceType = deviceType;
+        this.isActive = true;
+    }
+
+    // 이미 등록된 토큰의 재등록 — 기기 계정 전환 시 소유자가 바뀌므로 user까지 갱신하고 다시 활성화한다
+    public void renew(User user, DeviceType deviceType) {
+        this.user = user;
         this.deviceType = deviceType;
         this.isActive = true;
     }

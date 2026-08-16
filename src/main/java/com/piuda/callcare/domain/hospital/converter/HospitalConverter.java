@@ -2,7 +2,11 @@ package com.piuda.callcare.domain.hospital.converter;
 
 import com.piuda.callcare.domain.hospital.document.HospitalDocument;
 import com.piuda.callcare.domain.hospital.dto.response.HospitalSearchResponse;
+import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncHistoryResponse;
+import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncResultResponse;
 import com.piuda.callcare.domain.hospital.entity.Hospital;
+import com.piuda.callcare.domain.hospital.entity.HospitalSyncHistory;
+import com.piuda.callcare.domain.hospital.service.command.HospitalSyncCommandService;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,6 +29,33 @@ public class HospitalConverter {
                 document.getName(),
                 document.getAddress(),
                 document.getPhoneNumber()
+        );
+    }
+
+    public HospitalSyncResultResponse toSyncResultResponse(HospitalSyncCommandService.SyncResult result) {
+        return new HospitalSyncResultResponse(
+                result.status(),
+                result.requested(),
+                result.inserted(),
+                result.updated(),
+                result.failed()
+        );
+    }
+
+    public HospitalSyncHistoryResponse toSyncHistoryResponse(HospitalSyncHistory history) {
+        return new HospitalSyncHistoryResponse(
+                history.getId(),
+                history.getStatus(),
+                history.isFullSync(),
+                history.getStartedAt(),
+                history.getFinishedAt(),
+                history.getLastCompletedPage(),
+                history.getLastProgressAt(),
+                history.getRequestedCount(),
+                history.getInsertedCount(),
+                history.getUpdatedCount(),
+                history.getFailedCount(),
+                history.getErrorMessage()
         );
     }
 }

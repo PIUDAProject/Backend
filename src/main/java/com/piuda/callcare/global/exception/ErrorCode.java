@@ -54,7 +54,11 @@ public enum ErrorCode {
 	OCR_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "OCR-001", "OCR API 호출에 실패했습니다."),
 
 	// NOTIFICATION
-	UNSUPPORTED_MEAL_TIME(HttpStatus.BAD_REQUEST, "NOTI-001", "전화 알림을 지원하지 않는 식사 시간대입니다.");
+	UNSUPPORTED_MEAL_TIME(HttpStatus.BAD_REQUEST, "NOTI-001", "전화 알림을 지원하지 않는 식사 시간대입니다."),
+
+	// HOSPITAL
+	HOSPITAL_SYNC_ALREADY_RUNNING(HttpStatus.CONFLICT, "HOSPITAL-001", "이미 진행 중인 병원 데이터 동기화가 있습니다."),
+	HOSPITAL_SYNC_FAILED(HttpStatus.BAD_GATEWAY, "HOSPITAL-002", "병원 공공데이터 동기화에 실패했습니다.");
 
 	private final HttpStatus httpStatus;
 	private final String code;

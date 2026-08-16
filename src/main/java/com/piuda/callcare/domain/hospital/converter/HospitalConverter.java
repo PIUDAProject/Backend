@@ -3,7 +3,7 @@ package com.piuda.callcare.domain.hospital.converter;
 import com.piuda.callcare.domain.hospital.document.HospitalDocument;
 import com.piuda.callcare.domain.hospital.dto.response.HospitalSearchResponse;
 import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncHistoryResponse;
-import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncResultResponse;
+import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncStartResponse;
 import com.piuda.callcare.domain.hospital.entity.Hospital;
 import com.piuda.callcare.domain.hospital.entity.HospitalSyncHistory;
 import com.piuda.callcare.domain.hospital.service.command.HospitalSyncCommandService;
@@ -32,13 +32,10 @@ public class HospitalConverter {
         );
     }
 
-    public HospitalSyncResultResponse toSyncResultResponse(HospitalSyncCommandService.SyncResult result) {
-        return new HospitalSyncResultResponse(
-                result.status(),
-                result.requested(),
-                result.inserted(),
-                result.updated(),
-                result.failed()
+    public HospitalSyncStartResponse toSyncStartResponse(HospitalSyncCommandService.SyncStartResult result) {
+        return new HospitalSyncStartResponse(
+                result.historyId(),
+                result.status()
         );
     }
 

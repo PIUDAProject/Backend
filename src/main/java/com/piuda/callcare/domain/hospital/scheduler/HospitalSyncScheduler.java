@@ -16,6 +16,6 @@ public class HospitalSyncScheduler {
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void syncHospitals() {
         log.info("HospitalSyncScheduler 실행");
-        hospitalSyncCommandService.sync();
+        hospitalSyncCommandService.startSync();
     }
 }

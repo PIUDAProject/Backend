@@ -9,6 +9,9 @@ import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -26,15 +29,17 @@ public class HospitalSyncCommandService {
     private final HiraHospitalClient hiraHospitalClient;
     private final HospitalUpsertService hospitalUpsertService;
     private final HospitalSyncHistoryRepository hospitalSyncHistoryRepository;
+    @Qualifier("applicationTaskExecutor")
+    private final TaskExecutor taskExecutor;
 
-    public record SyncResult(HospitalSyncStatus status, int requested, int inserted, int updated, int failed) {
+    public record SyncStartResult(Long historyId, HospitalSyncStatus status) {
     }
 
-    public SyncResult sync() {
-        return sync(null);
+    public SyncStartResult startSync() {
+        return startSync(null);
     }
 
-    public SyncResult sync(Integer maxPages) {
+    public SyncStartResult startSync(Integer maxPages) {
         if (hospitalSyncHistoryRepository.existsByStatus(HospitalSyncStatus.RUNNING)) {
             log.warn("이미 실행 중인 병원 동기화가 있어 요청을 거부합니다.");
             throw new CallCareException(ErrorCode.HOSPITAL_SYNC_ALREADY_RUNNING);
@@ -44,7 +49,24 @@ public class HospitalSyncCommandService {
 
         LocalDateTime syncStartedAt = LocalDateTime.now();
         HospitalSyncHistory history = hospitalSyncHistoryRepository.save(HospitalSyncHistory.start(isFullSync));
-        log.info("병원 정보 데이터 수집 시작 (historyId: {}, maxPages: {})", history.getId(), maxPages);
+        log.info("병원 정보 데이터 수집 요청 접수 (historyId: {}, maxPages: {})", history.getId(), maxPages);
+
+        try {
+            taskExecutor.execute(() -> executeSync(history.getId(), maxPages, syncStartedAt));
+        } catch (TaskRejectedException e) {
+            history.complete(HospitalSyncStatus.FAILED, 0, 0, 0, 0, "동기화 비동기 작업 제출에 실패했습니다.");
+            hospitalSyncHistoryRepository.save(history);
+            throw new CallCareException(ErrorCode.HOSPITAL_SYNC_FAILED, "동기화 작업을 시작할 수 없습니다.");
+        }
+
+        return new SyncStartResult(history.getId(), HospitalSyncStatus.RUNNING);
+    }
+
+    private void executeSync(Long historyId, Integer maxPages, LocalDateTime syncStartedAt) {
+        HospitalSyncHistory history = hospitalSyncHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalStateException("병원 동기화 이력을 찾을 수 없습니다. historyId=" + historyId));
+        boolean isFullSync = history.isFullSync();
+        log.info("병원 정보 데이터 수집 시작 (historyId: {}, maxPages: {})", historyId, maxPages);
 
         int requested = 0;
         int inserted = 0;
@@ -97,9 +119,11 @@ public class HospitalSyncCommandService {
             } while ((long) (pageNo - 1) * NUM_OF_ROWS < expectedTotalCount);
 
             if (isFullSync) {
-                if (isAbnormalDrop(requested, expectedTotalCount)) {
+                int processed = inserted + updated;
+                if (isAbnormalDrop(requested, processed, expectedTotalCount)) {
                     log.warn("이번 수집을 폐업 병원 판단에 신뢰할 수 없어 비활성화를 건너뜁니다. " +
-                            "(requested: {}, HIRA totalCount: {})", requested, expectedTotalCount);
+                            "(requested: {}, processed: {}, HIRA totalCount: {})",
+                            requested, processed, expectedTotalCount);
                 } else {
                     int deactivated = hospitalUpsertService.deactivateStaleHospitals(syncStartedAt);
                     if (deactivated > 0) {
@@ -115,15 +139,11 @@ public class HospitalSyncCommandService {
             log.info("병원 정보 공공데이터 수집 완료 - 상태: {}, 조회: {}건, 신규: {}건, 갱신: {}건, 실패: {}건",
                     finalStatus, requested, inserted, updated, failed);
 
-            return new SyncResult(finalStatus, requested, inserted, updated, failed);
-
         } catch (Exception e) {
             log.error("병원 정보 공공데이터 수집 실패 - 기존 DB 데이터는 유지됩니다. (지금까지 반영: 신규 {}건, 갱신 {}건)",
                     inserted, updated, e);
             history.complete(HospitalSyncStatus.FAILED, requested, inserted, updated, failed, e.getMessage());
             hospitalSyncHistoryRepository.save(history);
-
-            throw new CallCareException(ErrorCode.HOSPITAL_SYNC_FAILED, e.getMessage());
         }
     }
 
@@ -141,13 +161,15 @@ public class HospitalSyncCommandService {
                 historyId, history.getLastCompletedPage());
     }
 
-    private boolean isAbnormalDrop(int requested, int expectedTotalCount) {
-        if (requested == 0) {
+    private boolean isAbnormalDrop(int requested, int processed, int expectedTotalCount) {
+        if (requested == 0 || processed == 0) {
             return true;
         }
         if (expectedTotalCount > 0) {
-            double completeness = (double) requested / expectedTotalCount;
+            double completeness = (double) processed / expectedTotalCount;
             if (completeness < MIN_COMPLETENESS_RATIO) {
+                log.warn("실제 DB 반영 비율이 기준 미달입니다. (processed: {}, expected: {}, ratio: {})",
+                        processed, expectedTotalCount, completeness);
                 return true;
             }
         }
@@ -160,13 +182,14 @@ public class HospitalSyncCommandService {
             return true;
         }
 
-        int previousRequested = previous.get(0).getRequestedCount();
-        if (previousRequested <= 0) {
-            log.warn("직전 정상 전체 동기화 수집량이 {}건이라 stale 비활성화를 수행하지 않습니다.", previousRequested);
+        HospitalSyncHistory previousHistory = previous.get(0);
+        int previousProcessed = previousHistory.getInsertedCount() + previousHistory.getUpdatedCount();
+        if (previousProcessed <= 0) {
+            log.warn("직전 정상 전체 동기화 DB 반영량이 {}건이라 stale 비활성화를 수행하지 않습니다.", previousProcessed);
             return true;
         }
 
-        double ratio = (double) requested / previousRequested;
+        double ratio = (double) processed / previousProcessed;
         return ratio < MIN_BASELINE_RATIO;
     }
 }

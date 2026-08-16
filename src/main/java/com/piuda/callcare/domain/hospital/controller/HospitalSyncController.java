@@ -2,7 +2,7 @@ package com.piuda.callcare.domain.hospital.controller;
 
 import com.piuda.callcare.domain.hospital.converter.HospitalConverter;
 import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncHistoryResponse;
-import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncResultResponse;
+import com.piuda.callcare.domain.hospital.dto.response.HospitalSyncStartResponse;
 import com.piuda.callcare.domain.hospital.service.command.HospitalSyncCommandService;
 import com.piuda.callcare.domain.hospital.service.query.HospitalSyncHistoryQueryService;
 import com.piuda.callcare.global.common.response.ApiResponse;
@@ -34,13 +34,13 @@ public class HospitalSyncController {
     private final HospitalSyncHistoryQueryService hospitalSyncHistoryQueryService;
     private final HospitalConverter hospitalConverter;
 
-    @Operation(summary = "병원 공공데이터 수동 동기화", description = "심평원 병원정보서비스에서 병원 데이터를 즉시 수집해 DB에 반영합니다. 매일 새벽 3시 배치와 동일한 로직입니다. maxPages를 주면 테스트용으로 해당 페이지까지만 수집합니다 (예: maxPages=3 -> 약 300건만 빠르게 확인). 이미 실행 중인 동기화가 있으면 409를 반환합니다.")
+    @Operation(summary = "병원 공공데이터 수동 동기화", description = "동기화를 백그라운드에서 시작하고 이력 ID를 즉시 반환합니다. 진행 상황은 이력 조회 API로 확인합니다. maxPages를 주면 테스트용으로 해당 페이지까지만 수집합니다. 이미 실행 중인 동기화가 있으면 409를 반환합니다.")
     @PostMapping
-    public ResponseEntity<ApiResponse<HospitalSyncResultResponse>> sync(
+    public ResponseEntity<ApiResponse<HospitalSyncStartResponse>> sync(
             @RequestParam(required = false) @Min(1) Integer maxPages
     ) {
-        HospitalSyncCommandService.SyncResult result = hospitalSyncCommandService.sync(maxPages);
-        return ResponseUtils.ok(hospitalConverter.toSyncResultResponse(result));
+        HospitalSyncCommandService.SyncStartResult result = hospitalSyncCommandService.startSync(maxPages);
+        return ResponseUtils.ok(hospitalConverter.toSyncStartResponse(result));
     }
 
     @Operation(summary = "병원 데이터 수집 이력 조회", description = "최근 수집 배치 이력을 최신순으로 반환합니다.")

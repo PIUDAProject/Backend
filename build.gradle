@@ -51,6 +51,8 @@ dependencies {
 
 	implementation 'net.nurigo:sdk:4.3.2'
 	implementation 'com.solapi:sdk:1.0.3'
+
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 }
 
 dependencyManagement {

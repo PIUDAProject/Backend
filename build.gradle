@@ -53,6 +53,8 @@ dependencies {
 	implementation 'com.solapi:sdk:1.0.3'
 
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+
+	implementation 'com.google.firebase:firebase-admin:9.4.1'
 }
 
 dependencyManagement {

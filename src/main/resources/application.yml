@@ -67,3 +67,6 @@ hira:
   service-key: ${HIRA_SERVICE_KEY:}
   hospital:
     base-url: ${HIRA_HOSPITAL_BASE_URL:https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList}
+
+fcm:
+  service-account-key-path: ${FCM_SERVICE_ACCOUNT_KEY_PATH:}

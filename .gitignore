@@ -41,6 +41,10 @@ out/
 .env.*
 !.env.example
 
+### FCM 서비스 계정 키 (절대 커밋 금지) ###
+**/*firebase-adminsdk*.json
+**/fcm-service-account*.json
+
 ### Claude 메모 (로컬 전용) ###
 docs/claude-notes/
 

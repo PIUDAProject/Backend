@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.piuda.callcare.domain.fcmtoken.dto.request.FcmTokenDeactivateRequest;
 import com.piuda.callcare.domain.fcmtoken.dto.request.FcmTokenRegisterRequest;
 import com.piuda.callcare.domain.fcmtoken.dto.response.FcmTokenResponse;
 import com.piuda.callcare.domain.fcmtoken.service.command.FcmTokenCommandService;
@@ -47,9 +47,9 @@ public class FcmTokenController {
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> deactivate(
             @AuthenticationPrincipal Long userId,
-            @RequestParam String token
+            @RequestBody @Valid FcmTokenDeactivateRequest request
     ) {
-        fcmTokenCommandService.deactivate(userId, token);
+        fcmTokenCommandService.deactivate(userId, request.token());
         return ResponseUtils.ok();
     }
 }

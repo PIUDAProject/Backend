@@ -141,12 +141,14 @@ public class FcmSendService {
         }
     }
 
-    // FCM이 영구 무효로 판단하는 토큰(등록 해제/잘못된 토큰)만 정리 대상. 일시적 실패는 유지.
+    // 토큰이 확실히 죽었다고 판단할 수 있는 코드만 정리 대상으로 삼는다.
+    // INVALID_ARGUMENT는 제외한다 — 토큰 형식 오류뿐 아니라 payload(data/notification) 오류에도 오는 코드라,
+    // 잘못된 payload 한 번이 그 수신자의 멀쩡한 토큰 전부를 비활성화시킬 수 있다.
+    // data 키를 호출자(트리거)가 채우는 구조라 실제로 일어날 수 있는 시나리오다.
     private boolean isInvalidToken(FirebaseMessagingException exception) {
         if (exception == null) {
             return false;
         }
-        MessagingErrorCode code = exception.getMessagingErrorCode();
-        return code == MessagingErrorCode.UNREGISTERED || code == MessagingErrorCode.INVALID_ARGUMENT;
+        return exception.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED;
     }
 }

@@ -166,6 +166,28 @@ class FcmSendServiceTest {
     }
 
     @Test
+    @DisplayName("payload 오류 방어: INVALID_ARGUMENT는 토큰을 비활성화하지 않는다")
+    void send_keepsToken_onInvalidArgument() throws FirebaseMessagingException {
+        // Given — INVALID_ARGUMENT는 payload 오류에도 오므로, 이걸로 토큰을 지우면
+        // 잘못된 data 한 번에 그 사용자의 모든 기기가 발송 대상에서 사라진다
+        givenConfigured();
+        givenNotificationSaved();
+        given(fcmTokenRepository.findByUser_IdAndIsActiveTrue(anyLong()))
+            .willReturn(new ArrayList<>(List.of(token(1L, "t0"), token(2L, "t1"))));
+        BatchResponse response = batchResponse(
+            failure(MessagingErrorCode.INVALID_ARGUMENT), failure(MessagingErrorCode.INVALID_ARGUMENT));
+        given(firebaseMessaging.sendEachForMulticast(any())).willReturn(response);
+
+        // When
+        FcmSendResult result = fcmSendService.send(request(recipient(1L, 10L)));
+
+        // Then
+        then(fcmSendRecorder).should(never()).deactivateInvalidTokens(anyList());
+        assertThat(result.deactivatedTokenCount()).isZero();
+        assertThat(result.failureCount()).isEqualTo(2);
+    }
+
+    @Test
     @DisplayName("상태: 청크 전체가 예외로 실패해도 SEND_FAILED로 집계된다")
     void send_returnsSendFailed_whenChunkThrows() throws FirebaseMessagingException {
         // Given

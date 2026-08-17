@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "drug_conflict", uniqueConstraints = @UniqueConstraint(
@@ -65,5 +66,16 @@ public class DrugConflict {
 
     public void resolve() {
         this.isResolved = true;
+    }
+
+    // 재분석 upsert용: severity/description이 실제로 바뀐 경우에만 갱신한다.
+    // 값이 동일하면 dirty checking으로도 UPDATE가 안 나가지만, 의도를 코드로 못박아 불필요한 갱신을 막는다.
+    public void updateAnalysis(ConflictSeverity severity, String conflictDescription) {
+        boolean changed = this.severity != severity
+                || !Objects.equals(this.conflictDescription, conflictDescription);
+        if (changed) {
+            this.severity = severity;
+            this.conflictDescription = conflictDescription;
+        }
     }
 }

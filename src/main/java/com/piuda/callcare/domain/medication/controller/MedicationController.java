@@ -5,6 +5,7 @@ import com.piuda.callcare.domain.medication.dto.request.MedicationUpdateRequest;
 import com.piuda.callcare.domain.medication.dto.response.MedicationDetailResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationGroupItemResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationNoteGroupResponse;
+import com.piuda.callcare.domain.medication.dto.response.MedicationReportGroupResponse;
 import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.service.command.MedicationCommandService;
 import com.piuda.callcare.domain.medication.service.query.MedicationQueryService;
@@ -102,7 +103,19 @@ public class MedicationController {
         return ResponseUtils.ok();
     }
 
-    @Operation(summary = "약 삭제", description = "약과 복용 스케줄을 완전 삭제합니다. 복구 불가능합니다.")
+    @Operation(
+        summary = "복약 기록 리포트",
+        description = "최근 90일간 복약 이력을 병원별로 그룹화해 반환합니다. 같은 약을 연속으로 처방받은 경우(이전 처방 종료일 다음날 = 다음 처방 시작일) 하나로 합산해 총 복용 일수를 계산합니다."
+    )
+    @GetMapping("/report")
+    public ResponseEntity<ApiResponse<List<MedicationReportGroupResponse>>> getReport(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam Long seniorId
+    ) {
+        return ResponseUtils.ok(medicationQueryService.getReport(userId, seniorId));
+    }
+
+    @Operation(summary = "약 삭제", description = "약을 삭제 처리합니다. 삭제일 당일부터 약물노트·상세 조회·오늘/미래 홈카드·충돌 목록에서 제외되며, 삭제 이전 날짜의 홈카드와 복약 기록 리포트에는 그대로 남습니다.")
     @DeleteMapping("/{medicationId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @AuthenticationPrincipal Long userId,

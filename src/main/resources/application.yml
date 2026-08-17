@@ -13,6 +13,13 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
 
 server:
   port: 8080
@@ -55,6 +62,11 @@ notification:
   delayed-queue:
     poller-enabled: ${NOTIFICATION_DELAYED_QUEUE_POLLER_ENABLED:true}
     poll-interval-ms: ${NOTIFICATION_DELAYED_QUEUE_POLL_INTERVAL_MS:1000}
+
+hira:
+  service-key: ${HIRA_SERVICE_KEY:}
+  hospital:
+    base-url: ${HIRA_HOSPITAL_BASE_URL:https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList}
 
 fcm:
   service-account-key-path: ${FCM_SERVICE_ACCOUNT_KEY_PATH:}

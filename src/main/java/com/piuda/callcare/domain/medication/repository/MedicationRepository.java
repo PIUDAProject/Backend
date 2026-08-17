@@ -2,6 +2,7 @@ package com.piuda.callcare.domain.medication.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import com.piuda.callcare.domain.medication.entity.Medication;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,11 +11,16 @@ import org.springframework.data.repository.query.Param;
 
 public interface MedicationRepository extends JpaRepository<Medication, Long> {
 
+    // 단건 조회(상세·수정·삭제·토글 공용): 삭제된 약은 없는 것으로 취급해 MEDICATION_NOT_FOUND로 떨어지게 한다.
+    // findById는 삭제 여부를 못 거르므로 현재 시점 단건 조회는 반드시 이 메서드를 쓴다.
+    Optional<Medication> findByIdAndDeletedAtIsNull(Long medicationId);
+
     // 소진 예측용: 특정 어르신의 활성(복용 중) 약만 조회. 남은 일수는 endDate로 계산하므로 endDate가 있는 것만 대상으로 한다.
     @Query("""
             SELECT m FROM Medication m
             WHERE m.senior.id = :seniorId
               AND m.isActive = true
+              AND m.deletedAt IS NULL
               AND m.endDate IS NOT NULL
             """)
     List<Medication> findActiveMedicationsForDepletion(@Param("seniorId") Long seniorId);
@@ -26,6 +32,7 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
             JOIN FETCH m.drugInfo
             WHERE m.senior.id = :seniorId
               AND m.isActive = true
+              AND m.deletedAt IS NULL
             """)
     List<Medication> findActiveWithDrugInfoBySeniorId(@Param("seniorId") Long seniorId);
 
@@ -33,6 +40,7 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
     @Query("""
             SELECT m FROM Medication m
             WHERE m.senior.id = :seniorId
+              AND m.deletedAt IS NULL
               AND (:isActive IS NULL OR m.isActive = :isActive)
             ORDER BY m.startDate DESC, m.hospitalName ASC NULLS LAST
             """)
@@ -44,6 +52,7 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
             SELECT m FROM Medication m
             WHERE m.senior.id = :seniorId
               AND m.startDate >= :fromDate
+              AND m.deletedAt IS NULL
               AND (:isActive IS NULL OR m.isActive = :isActive)
               AND (LOWER(m.drugName) LIKE LOWER(CONCAT('%', :keyword, '%'))
                 OR LOWER(m.drugNickname) LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -55,6 +64,18 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
                                      @Param("fromDate") LocalDate fromDate,
                                      @Param("isActive") Boolean isActive);
 
+    // 복약 기록 리포트: 최근 90일 이내 약 전체 — 병원·약 이름·시작일 기준 정렬 (연속 합산 로직은 서비스에서 처리)
+    // deleted_at 조건을 일부러 넣지 않는다 — 리포트는 지난 복약 이력이므로 이후에 삭제한 약도 그대로 집계에 남긴다.
+    @Query("""
+            SELECT m FROM Medication m
+            WHERE m.senior.id = :seniorId
+              AND m.startDate >= :fromDate
+              AND m.isActive = true
+            ORDER BY m.hospitalName ASC NULLS LAST, m.drugName ASC, m.startDate ASC
+            """)
+    List<Medication> findForReport(@Param("seniorId") Long seniorId,
+                                   @Param("fromDate") LocalDate fromDate);
+
     // 약물노트 그룹 상세 조회: 병원명 + 처방일 조합이 그룹 키 (둘 다 null 가능)
     @Query("""
             SELECT m FROM Medication m
@@ -62,6 +83,7 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
               AND ((:hospitalName IS NULL AND m.hospitalName IS NULL) OR m.hospitalName = :hospitalName)
               AND ((:prescriptionDate IS NULL AND m.prescriptionDate IS NULL) OR m.prescriptionDate = :prescriptionDate)
               AND m.isActive = true
+              AND m.deletedAt IS NULL
             ORDER BY m.createdAt ASC
             """)
     List<Medication> findByGroup(@Param("seniorId") Long seniorId,

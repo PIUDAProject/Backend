@@ -51,8 +51,9 @@ public class HomeCardQueryService {
         }
 
         HomeCardMode mode = HomeCardMode.from(targetDate);
-        List<MedicationSchedule> schedules =
-                medicationScheduleRepository.findActiveSchedulesForHomeCards(seniorId, targetDate);
+        // 조회 날짜의 다음날 0시 — 이 시각 이후에 삭제된 약은 그 날엔 아직 복용 중이었으므로 카드에 남긴다
+        List<MedicationSchedule> schedules = medicationScheduleRepository.findActiveSchedulesForHomeCards(
+                seniorId, targetDate, targetDate.plusDays(1).atStartOfDay());
 
         // 미래 모드는 완료 개념이 없어 로그 조회 자체를 생략
         Set<TakenKey> takenKeys = mode.tracksCompletion()
@@ -64,6 +65,7 @@ public class HomeCardQueryService {
                 .collect(Collectors.groupingBy(MedicationSchedule::getMealTime, TreeMap::new, Collectors.toList()))
                 .entrySet().stream()
                 .map(entry -> toMealGroup(entry.getKey(), entry.getValue(), mode, takenKeys))
+                .filter(group -> mode != HomeCardMode.TODAY || !group.mealTimeCompleted())
                 .toList();
 
         return new HomeCardResponse(targetDate, mode, mealGroups);

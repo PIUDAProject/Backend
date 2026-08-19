@@ -45,6 +45,9 @@ public class CallReminderCommandService {
     private static final List<CallStatus> NOTIFIABLE_STATUSES = List.of(CallStatus.PENDING, CallStatus.NO_ANSWER, CallStatus.FAILED);
     // 최초 발신 후 이 시간이 지나도록 수신되지 않으면 1회 재발신한다
     private static final int RETRY_DELAY_MINUTES = 10;
+    // 재발신 대상으로 볼 최대 경과 시간. 스케줄러가 오래 멈춰 있었거나 재발신 도입 전에 쌓인
+    // 과거 행까지 한꺼번에 발신하는 것을 막는다 — 한 시간 넘게 지난 복약 전화는 다시 걸지 않는다.
+    private static final int RETRY_MAX_AGE_MINUTES = 60;
     // 마지막 발신(재발신 포함) 후 이 시간이 지나도록 수신되지 않으면 보호자·부모님에게 통보한다.
     // 재발신 시 calledAt이 갱신되므로 최초 발신 기준으로는 총 20분이다.
     private static final int GUARDIAN_SWEEP_OFFSET_MINUTES = 10;
@@ -79,8 +82,9 @@ public class CallReminderCommandService {
     // 재발신 스윕: 최초 발신 후 RETRY_DELAY_MINUTES가 지나도록 수신되지 않은 콜을 1회 더 발신한다.
     // 한 건의 실패가 스윕 전체를 멈추지 않도록 건별로 예외를 가둔다(sendDueFirstCalls와 동일 패턴).
     public void retryUnansweredCalls(LocalDateTime now) {
-        LocalDateTime retryThreshold = now.minusMinutes(RETRY_DELAY_MINUTES);
-        for (CallLog callLog : callLogRepository.findRetryTargets(NOTIFIABLE_STATUSES, now.toLocalDate(), retryThreshold)) {
+        LocalDateTime calledBefore = now.minusMinutes(RETRY_DELAY_MINUTES);
+        LocalDateTime calledAfter = now.minusMinutes(RETRY_MAX_AGE_MINUTES);
+        for (CallLog callLog : callLogRepository.findRetryTargets(NOTIFIABLE_STATUSES, calledAfter, calledBefore)) {
             try {
                 retryCall(callLog, now);
             } catch (Exception e) {

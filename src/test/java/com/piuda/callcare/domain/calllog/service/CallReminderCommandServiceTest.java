@@ -62,7 +62,7 @@ class CallReminderCommandServiceTest {
     void retryUnansweredCalls_resends_when_delay_elapsed() {
         // Given
         CallLog callLog = createFirstCallLog(CallStatus.PENDING);
-        given(callLogRepository.findRetryTargets(any(), eq(CALL_DATE), any())).willReturn(List.of(callLog));
+        given(callLogRepository.findRetryTargets(any(), any(), any())).willReturn(List.of(callLog));
         given(medicationScheduleRepository.existsUntakenScheduleForCall(SENIOR_ID, MEAL_TIME, CALL_DATE))
                 .willReturn(true);
         given(voiceCallSender.call(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString(), anyString()))
@@ -84,7 +84,7 @@ class CallReminderCommandServiceTest {
     void retryUnansweredCalls_skips_when_meal_time_already_completed() {
         // Given
         CallLog callLog = createFirstCallLog(CallStatus.NO_ANSWER);
-        given(callLogRepository.findRetryTargets(any(), eq(CALL_DATE), any())).willReturn(List.of(callLog));
+        given(callLogRepository.findRetryTargets(any(), any(), any())).willReturn(List.of(callLog));
         given(medicationScheduleRepository.existsUntakenScheduleForCall(SENIOR_ID, MEAL_TIME, CALL_DATE))
                 .willReturn(false);
 
@@ -193,7 +193,7 @@ class CallReminderCommandServiceTest {
     void retryUnansweredCalls_marks_failed_when_send_throws() {
         // Given
         CallLog callLog = createFirstCallLog(CallStatus.NO_ANSWER);
-        given(callLogRepository.findRetryTargets(any(), eq(CALL_DATE), any())).willReturn(List.of(callLog));
+        given(callLogRepository.findRetryTargets(any(), any(), any())).willReturn(List.of(callLog));
         given(medicationScheduleRepository.existsUntakenScheduleForCall(anyLong(), any(MealTime.class), any()))
                 .willReturn(true);
         given(voiceCallSender.call(anyString(), anyString(), anyString(), anyString()))

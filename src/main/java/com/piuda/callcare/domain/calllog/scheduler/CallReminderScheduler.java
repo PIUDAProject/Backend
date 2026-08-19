@@ -20,6 +20,12 @@ public class CallReminderScheduler {
         callReminderCommandService.sendDueFirstCalls(LocalDateTime.now());
     }
 
+    // 0초=최초 발신, 20초=재발신, 40초=보호자 통보 — 같은 분 안에서 초 단위로 분산시킨다
+    @Scheduled(cron = "20 * * * * *")
+    public void retryUnansweredCalls() {
+        callReminderCommandService.retryUnansweredCalls(LocalDateTime.now());
+    }
+
     @Scheduled(cron = "40 * * * * *")
     public void notifyGuardiansForUnansweredCalls() {
         callReminderCommandService.notifyGuardiansForUnansweredCalls(LocalDateTime.now());

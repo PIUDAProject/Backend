@@ -107,4 +107,25 @@ public class CallLog {
         this.isNotified = true;
     }
 
+    // 재발신 선점 — 발신 "전에" 상태를 확정한다. retryCount를 먼저 1로 올려 다음 스윕이
+    // 같은 row를 다시 집지 않게 한다(중복 전화 방지). messageId는 2차 발신 결과로 다시 채워진다.
+    // 1차 결과가 NO_ANSWER/FAILED(terminal)여도 PENDING으로 되돌려야 하므로 isTerminal 가드를 두지 않는다.
+    public void markRetryPreempted(LocalDateTime calledAt) {
+        this.status = CallStatus.PENDING;
+        this.retryCount = 1;
+        this.calledAt = calledAt;
+        this.messageId = null;
+    }
+
+    // 재발신 직전 그 시간대가 이미 복약 완료라 발신을 생략한 경우.
+    // retryCount를 올리지 않고 상태만 바꿔, 재발신 스윕에 매분 다시 걸리는 것을 막는다.
+    public void markSkipped() {
+        this.status = CallStatus.SKIPPED;
+    }
+
+    // 2차(마지막) 콜까지 진행한 row인지 — 웹훅 즉시 통보 경로의 게이트
+    public boolean hasRetried() {
+        return this.retryCount != null && this.retryCount >= 1;
+    }
+
 }

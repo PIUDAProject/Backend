@@ -33,6 +33,9 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
             @Param("date") LocalDate date
     );
 
+    // 전화 발신 게이트: 해당 시간대에 "아직 복용 완료로 기록되지 않은" 활성 약이 하나라도 있는지.
+    // 보호자가 이미 그 시간대를 체크했으면 전화를 걸지 않는다 — 통보 억제가 아니라 발신 자체를 생략한다.
+    // 약이 아예 없는 경우도 false이므로 "발신할 약이 있는가" 판정까지 이 쿼리 하나로 처리한다.
     @Query("""
             SELECT (COUNT(ms) > 0) FROM MedicationSchedule ms
             JOIN ms.medication m
@@ -41,8 +44,15 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
               AND m.isActive = true
               AND m.startDate <= :date
               AND m.endDate >= :date
+              AND NOT EXISTS (
+                  SELECT 1 FROM MedicationLog ml
+                  WHERE ml.medication = m
+                    AND ml.takenDate = :date
+                    AND ml.mealTime = :mealTime
+                    AND ml.isTaken = true
+              )
             """)
-    boolean existsActiveScheduleForCall(
+    boolean existsUntakenScheduleForCall(
             @Param("seniorId") Long seniorId,
             @Param("mealTime") MealTime mealTime,
             @Param("date") LocalDate date

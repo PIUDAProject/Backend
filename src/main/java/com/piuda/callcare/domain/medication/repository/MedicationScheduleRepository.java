@@ -2,6 +2,7 @@ package com.piuda.callcare.domain.medication.repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
@@ -13,6 +14,11 @@ import org.springframework.data.repository.query.Param;
 public interface MedicationScheduleRepository extends JpaRepository<MedicationSchedule, Long> {
 
     void deleteAllByMedication_Id(Long medicationId);
+
+    // 충돌 알림 문구용: 두 약의 복용 시간대를 한 번에 조회. 발송이 트랜잭션 밖이라 지연 로딩을 쓸 수 없고,
+    // 약이 2건뿐이라 IN 절 한 번이면 충분하다. 정렬은 서비스에서 enum 순서(아침→점심→저녁→취침)로 처리한다
+    // — mealTime이 STRING이라 DB 정렬은 알파벳순(BEDTIME이 먼저)이 되어 사람이 읽는 순서와 어긋난다.
+    List<MedicationSchedule> findAllByMedication_IdIn(Collection<Long> medicationIds);
 
     // 토글 검증용: 해당 약에 그 시간대의 오늘 활성(복용 기간 내) 스케줄이 실제 존재하는지
     // (홈카드 완료 계산의 findActiveSchedulesForHomeCards와 동일한 active/기간 조건으로 게이트를 맞춘다)

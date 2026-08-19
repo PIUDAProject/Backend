@@ -20,10 +20,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.piuda.callcare.domain.drugconflict.entity.DrugConflict;
 import com.piuda.callcare.domain.drugconflict.enums.ConflictSeverity;
+import com.piuda.callcare.domain.drugconflict.event.DrugConflictDetectedEvent;
 import com.piuda.callcare.domain.drugconflict.repository.DrugConflictRepository;
 import com.piuda.callcare.domain.drugconflict.service.DrugConflictMatcher;
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
@@ -52,6 +54,8 @@ class DrugConflictCommandServiceTest {
     // 매칭 순수 로직은 실제 구현을 주입
     @Spy
     private DrugConflictMatcher drugConflictMatcher = new DrugConflictMatcher();
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @Test
     @DisplayName("충돌하는 활성 약 쌍을 발견하면 정규화된 순서(작은 id가 medication1)로 저장한다")
@@ -66,6 +70,7 @@ class DrugConflictCommandServiceTest {
         given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
         given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(anyLong(), anyLong(), anyLong()))
                 .willReturn(Optional.empty());
+        given(drugConflictRepository.save(any(DrugConflict.class))).willAnswer(invocation -> invocation.getArgument(0));
 
         // When
         drugConflictCommandService.analyze(SENIOR_ID);
@@ -180,6 +185,88 @@ class DrugConflictCommandServiceTest {
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SENIOR_NOT_FOUND);
         then(medicationRepository).should(never()).findActiveWithDrugInfoBySeniorId(anyLong());
+    }
+
+    @Test
+    @DisplayName("알림: 새로 탐지된 조합은 알림 이벤트를 발행한다")
+    void analyze_publishesEvent_forNewlyDetectedConflict() {
+        // Given
+        Senior senior = senior();
+        Medication a = medication(20L, drugInfo("코감기약", null,
+                "항히스타민제를 함유하는 내복약과 함께 복용하지 마십시오."));
+        Medication b = medication(10L, drugInfo("알레르기약", "[01410]항히스타민제", null));
+
+        given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
+        given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
+        given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(anyLong(), anyLong(), anyLong()))
+                .willReturn(Optional.empty());
+        given(drugConflictRepository.save(any(DrugConflict.class))).willAnswer(invocation -> {
+            DrugConflict conflict = invocation.getArgument(0);
+            ReflectionTestUtils.setField(conflict, "id", 777L);
+            return conflict;
+        });
+
+        // When
+        drugConflictCommandService.analyze(SENIOR_ID);
+
+        // Then
+        then(eventPublisher).should(times(1))
+                .publishEvent(new DrugConflictDetectedEvent(777L, false));
+    }
+
+    @Test
+    @DisplayName("알림: 조합은 그대로여도 등급이 오르면 상승 표시와 함께 다시 알린다")
+    void analyze_publishesEvent_whenSeverityEscalates() {
+        // Given - 기존 행은 주의, 재분석은 금기
+        Senior senior = senior();
+        Medication a = medication(20L, drugInfo("코감기약", null,
+                "항히스타민제를 함유하는 내복약과 함께 복용하지 마십시오."));
+        Medication b = medication(10L, drugInfo("알레르기약", "[01410]항히스타민제", null));
+        DrugConflict existing = DrugConflict.builder()
+                .senior(senior).medication1(b).medication2(a)
+                .severity(ConflictSeverity.CAUTION)
+                .conflictDescription("옛 설명")
+                .build();
+        ReflectionTestUtils.setField(existing, "id", 777L);
+
+        given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
+        given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
+        given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(SENIOR_ID, 10L, 20L))
+                .willReturn(Optional.of(existing));
+
+        // When
+        drugConflictCommandService.analyze(SENIOR_ID);
+
+        // Then
+        then(eventPublisher).should(times(1))
+                .publishEvent(new DrugConflictDetectedEvent(777L, true));
+    }
+
+    @Test
+    @DisplayName("알림: 이미 같은 등급으로 저장된 조합은 알림 이벤트를 발행하지 않는다")
+    void analyze_publishesNothing_whenSeverityUnchanged() {
+        // Given - 기존 행이 이미 금기. 리포트를 열 때마다 재분석이 돌아도 다시 알리면 안 된다.
+        Senior senior = senior();
+        Medication a = medication(20L, drugInfo("코감기약", null,
+                "항히스타민제를 함유하는 내복약과 함께 복용하지 마십시오."));
+        Medication b = medication(10L, drugInfo("알레르기약", "[01410]항히스타민제", null));
+        DrugConflict existing = DrugConflict.builder()
+                .senior(senior).medication1(b).medication2(a)
+                .severity(ConflictSeverity.CONTRAINDICATED)
+                .conflictDescription("옛 설명")
+                .build();
+        ReflectionTestUtils.setField(existing, "id", 777L);
+
+        given(seniorRepository.findById(SENIOR_ID)).willReturn(Optional.of(senior));
+        given(medicationRepository.findActiveWithDrugInfoBySeniorId(SENIOR_ID)).willReturn(List.of(a, b));
+        given(drugConflictRepository.findBySenior_IdAndMedication1_IdAndMedication2_Id(SENIOR_ID, 10L, 20L))
+                .willReturn(Optional.of(existing));
+
+        // When
+        drugConflictCommandService.analyze(SENIOR_ID);
+
+        // Then
+        then(eventPublisher).should(never()).publishEvent(any(DrugConflictDetectedEvent.class));
     }
 
     // ---- fixtures ----

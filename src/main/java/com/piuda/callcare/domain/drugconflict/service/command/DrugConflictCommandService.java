@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.piuda.callcare.domain.drugconflict.entity.DrugConflict;
@@ -34,6 +35,15 @@ public class DrugConflictCommandService {
     private final DrugConflictRepository drugConflictRepository;
     private final DrugConflictMatcher drugConflictMatcher;
     private final ApplicationEventPublisher eventPublisher;
+
+    // 약 변경 이벤트(AFTER_COMMIT) 트리거: 이미 완료된 원본 트랜잭션에 올라타면 쓰기가 커밋되지 않으므로
+    // 새 트랜잭션에서 분석한다. 트랜잭션 경계를 리스너가 아니라 여기에 두는 이유는, 리스너에 REQUIRES_NEW를
+    // 걸면 분석 실패가 커밋 단계의 UnexpectedRollbackException으로 바뀌어 리스너의 catch를 빠져나가기
+    // 때문이다 — 경계가 이 메서드에 있으면 원래 예외가 그대로 호출자에게 전달돼 리스너에서 가둘 수 있다.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void analyzeInNewTransaction(Long seniorId) {
+        analyze(seniorId);
+    }
 
     // 리포트 진입 트리거: 어르신의 활성 약(DrugInfo 연결) 전체 쌍을 검사해 새 충돌만 저장.
     // 실시간 재계산이 아니라 분석 결과를 DrugConflict에 적재(4단계 = 저장값).

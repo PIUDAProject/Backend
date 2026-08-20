@@ -9,6 +9,7 @@ import com.piuda.callcare.domain.medication.dto.response.MedicationResponse;
 import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 import com.piuda.callcare.domain.medication.enums.MealTime;
+import com.piuda.callcare.domain.medication.event.MedicationChangedEvent;
 import com.piuda.callcare.domain.medication.repository.MedicationRepository;
 import com.piuda.callcare.domain.medication.repository.MedicationScheduleRepository;
 import com.piuda.callcare.domain.senior.entity.Senior;
@@ -17,6 +18,7 @@ import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +35,23 @@ public class MedicationCommandService {
     private final SeniorRepository seniorRepository;
     private final DrugInfoRepository drugInfoRepository;
     private final MedicationConverter medicationConverter;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 약 1건 이상 일괄 등록 — 스케줄 자동 생성, 하나라도 실패 시 전체 롤백
     @Transactional
     public List<MedicationResponse> registerBatch(Long userId, List<MedicationCreateRequest> requests) {
-        return requests.stream()
+        List<MedicationResponse> responses = requests.stream()
                 .map(request -> doRegister(userId, request))
                 .toList();
+
+        // 약이 늘면 새 충돌이 생길 수 있다 — 어르신 단위로 한 번만 재분석하도록 중복을 제거해 발행한다.
+        // 실제 분석은 이 트랜잭션이 커밋된 뒤에 돈다(MedicationChangedListener).
+        requests.stream()
+                .map(MedicationCreateRequest::seniorId)
+                .distinct()
+                .forEach(seniorId -> eventPublisher.publishEvent(new MedicationChangedEvent(seniorId)));
+
+        return responses;
     }
 
     private MedicationResponse doRegister(Long userId, MedicationCreateRequest request) {
@@ -136,6 +148,10 @@ public class MedicationCommandService {
             List<MedicationSchedule> newSchedules = createSchedules(medication, request.timesPerDay());
             medicationScheduleRepository.saveAll(newSchedules);
         }
+
+        // 약 이름이 바뀌면 연결된 DrugInfo 해석이 달라져 충돌 결과도 달라질 수 있다.
+        // 삭제(delete)에는 발행하지 않는다 — 약이 빠지는 것은 새 충돌을 만들지 않는다.
+        eventPublisher.publishEvent(new MedicationChangedEvent(medication.getSenior().getId()));
     }
 
     // 약 소프트 삭제 — deleted_at만 채우고 스케줄·복약 로그·충돌 행은 그대로 남긴다(이력 보존 + FK 위반 회피).

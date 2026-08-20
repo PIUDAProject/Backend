@@ -25,6 +25,23 @@ public interface DrugConflictRepository extends JpaRepository<DrugConflict, Long
             """)
     List<DrugConflict> findAllWithMedicationsForReanalysis(@Param("seniorId") Long seniorId);
 
+    // 충돌 알림 발송용: 두 약에 더해 senior·user까지 로딩한다 — 발송은 트랜잭션 밖에서 일어나므로
+    // 수신자(보호자)를 지연 로딩할 수 없다. 노출 조건(활성·미삭제)은 목록/상세와 동일하게 맞춘다:
+    // 이벤트 발행과 발송 사이에 약이 삭제됐다면 이미 유효하지 않은 경고이므로 보내지 않는다.
+    @Query("""
+            SELECT dc FROM DrugConflict dc
+            JOIN FETCH dc.senior s
+            JOIN FETCH s.user u
+            JOIN FETCH dc.medication1 m1
+            JOIN FETCH dc.medication2 m2
+            WHERE dc.id = :conflictId
+              AND m1.isActive = true
+              AND m2.isActive = true
+              AND m1.deletedAt IS NULL
+              AND m2.deletedAt IS NULL
+            """)
+    Optional<DrugConflict> findForNotificationById(@Param("conflictId") Long conflictId);
+
     // 목록 조회: 두 약을 함께 로딩(LazyInitialization 방지). 정렬은 서비스에서 등급 우선순위로 처리.
     // 두 약이 모두 활성(is_active=true)이고 삭제되지 않은 충돌만 노출 — 복용 종료·삭제된 약의 stale 충돌 방지.
     @Query("""

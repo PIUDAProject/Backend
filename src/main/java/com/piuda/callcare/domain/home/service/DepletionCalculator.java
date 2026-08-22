@@ -19,8 +19,11 @@ public class DepletionCalculator {
         return ChronoUnit.DAYS.between(today, endDate);
     }
 
-    // 남은 일수가 임계값 이하이면 소진 임박(부족)
+    // 남은 일수가 0 이상 임계값 이하이면 소진 임박(부족).
+    // 하한(0)이 필요한 이유: 복용이 끝난 약도 isActive로 남아 있어(Medication.deactivate() 호출부 없음)
+    // 하한이 없으면 몇 달 전 끝난 약이 계속 부족으로 잡힌다 — 정작 급한 약이 그 사이에 묻힌다.
     public boolean isDepleting(LocalDate endDate, LocalDate today) {
-        return remainingDays(endDate, today) <= DEPLETION_THRESHOLD_DAYS;
+        long remaining = remainingDays(endDate, today);
+        return remaining >= 0 && remaining <= DEPLETION_THRESHOLD_DAYS;
     }
 }

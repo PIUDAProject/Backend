@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "병원별 복약 카드 그룹")
 public record HospitalGroupResponse(
 
-        @Schema(description = "병원 ID (없으면 null)") Long hospitalId,
         @Schema(description = "병원명") String hospitalName,
         @Schema(description = "약 카드 목록") List<MedicationCardResponse> medications
 ) {

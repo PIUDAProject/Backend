@@ -40,8 +40,8 @@ class DepletionCalculatorTest {
     }
 
     @Test
-    @DisplayName("경계: 종료일이 이미 지나(남은 음수) 있으면 부족")
-    void isDepleting_true_when_negative() {
-        assertThat(calculator.isDepleting(today.minusDays(1), today)).isTrue();
+    @DisplayName("경계: 종료일이 이미 지나(남은 음수) 있으면 부족이 아니다")
+    void isDepleting_false_when_negative() {
+        assertThat(calculator.isDepleting(today.minusDays(1), today)).isFalse();
     }
 }

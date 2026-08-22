@@ -28,9 +28,9 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
     // 소진 알림 배치용: 어르신 구분 없이 "잔여 0~3일"인 활성 약 전체를 보호자까지 한 번에 로딩(N+1 방지).
     // 발송이 트랜잭션 밖에서 일어나므로 senior/user를 반드시 JOIN FETCH 해야 한다(LazyInitializationException 방지).
     //
-    // endDate에 하한(:today)을 두는 것이 핵심이다 — DepletionCalculator.isDepleting()은 잔여일이 음수여도
-    // true라서, 하한이 없으면 복용이 이미 끝났는데 isActive로 남아 있는 약에 매일 푸시가 나간다.
-    // 홈 화면 카드는 열었을 때만 보이므로 상관없지만, 푸시는 회수할 수 없다.
+    // endDate에 하한(:today)을 두는 이유: 복용이 끝난 약도 isActive로 남아 있어(Medication.deactivate() 호출부 없음)
+    // 하한이 없으면 이미 끝난 약에 매일 푸시가 나간다. DepletionCalculator.isDepleting()도 같은 하한을 갖지만,
+    // 이 쿼리는 대상 전체를 미리 좁혀 로딩하는 용도라 조건을 쿼리에도 그대로 둔다.
     @Query("""
             SELECT m FROM Medication m
             JOIN FETCH m.senior s

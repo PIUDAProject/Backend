@@ -94,7 +94,6 @@ class HomeCardQueryServiceTest {
         assertThat(breakfast.mealTimeCompleted()).isFalse();
         assertThat(breakfast.hospitalGroups().get(0).hospitalName()).isEqualTo("서울내과");
         assertThat(breakfast.hospitalGroups().get(0).medications().get(0).isTaken()).isTrue();
-        assertThat(breakfast.hospitalGroups().get(1).hospitalId()).isNull();
         assertThat(breakfast.hospitalGroups().get(1).hospitalName()).isEqualTo("병원 정보 없음");
         assertThat(breakfast.hospitalGroups().get(1).medications().get(0).isTaken()).isFalse();
         assertThat(result.mealGroups()).extracting(MealGroupResponse::mealTime)
@@ -176,6 +175,34 @@ class HomeCardQueryServiceTest {
                 .isInstanceOf(CallCareException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SENIOR_NOT_FOUND);
         then(medicationScheduleRepository).should(never()).findActiveSchedulesForHomeCards(anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("병원명이 없는 약은 하나로 묶지 않고 약마다 개별 그룹으로 나온다")
+    void todayMode_medicationsWithoutHospital_areNotGrouped() {
+        // Given - 아침: 서울내과(약10) + 병원없음(약11) + 병원없음(약12)
+        Medication med10 = medication(10L, "서울내과");
+        Medication med11 = medication(11L, null);
+        Medication med12 = medication(12L, null);
+        given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
+        given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
+                .willReturn(List.of(
+                        schedule(med10, MealTime.BREAKFAST),
+                        schedule(med11, MealTime.BREAKFAST),
+                        schedule(med12, MealTime.BREAKFAST)
+                ));
+        given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today)).willReturn(List.of());
+
+        // When
+        HomeCardResponse result = homeCardQueryService.getHomeCards(SENIOR_ID, today);
+
+        // Then - 병원 그룹 3개(서울내과 1 + 병원없음 2), 병원없음 그룹은 각각 약 1건씩
+        MealGroupResponse breakfast = result.mealGroups().get(0);
+        assertThat(breakfast.hospitalGroups()).hasSize(3);
+        assertThat(breakfast.hospitalGroups()).extracting(g -> g.hospitalName())
+                .containsExactly("서울내과", "병원 정보 없음", "병원 정보 없음");
+        assertThat(breakfast.hospitalGroups().get(1).medications()).hasSize(1);
+        assertThat(breakfast.hospitalGroups().get(2).medications()).hasSize(1);
     }
 
     // ---- fixtures ----

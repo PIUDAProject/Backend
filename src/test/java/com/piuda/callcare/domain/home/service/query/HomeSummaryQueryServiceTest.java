@@ -180,6 +180,30 @@ class HomeSummaryQueryServiceTest {
     }
 
     @Test
+    @DisplayName("다음 복용: 시간대 안에서 이미 완료한 약은 안내에서 빠진다")
+    void nextDose_excludesAlreadyTakenMedicationsInMealTime() {
+        // Given - 13시 기준 남은 시간대는 저녁뿐. 저녁 약 3건 중 첫 약(약10)만 미리 완료
+        Medication med10 = medication(10L);
+        Medication med11 = medication(11L);
+        Medication med12 = medication(12L);
+        givenSchedules(today, List.of(
+                schedule(med10, MealTime.DINNER),
+                schedule(med11, MealTime.DINNER),
+                schedule(med12, MealTime.DINNER)
+        ));
+        given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today))
+                .willReturn(List.of(log(med10, MealTime.DINNER)));
+
+        // When
+        HomeSummaryResponse result = homeSummaryQueryService.getSummary(SENIOR_ID, today, LocalTime.of(13, 0));
+
+        // Then - 완료한 약10이 아니라 남은 약11이 안내되고, 나머지 수도 약12 하나만 센다
+        assertThat(result.nextDose().mealTime()).isEqualTo(MealTime.DINNER);
+        assertThat(result.nextDose().drugName()).isEqualTo("약11");
+        assertThat(result.nextDose().otherCount()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("다음 복용: 남은 시간대를 이미 다 완료했으면 null이다")
     void nextDose_nullWhenUpcomingMealTimesCompleted() {
         // Given - 13시 기준 남은 시간대는 저녁뿐인데 이미 완료

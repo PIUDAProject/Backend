@@ -87,7 +87,8 @@ public class HomeSummaryQueryService {
     }
 
     // 다음 복용 = 지금 시각 이후 가장 가까운 시간대. 시각이 이미 지난 시간대는 미완료여도 잡지 않는다.
-    // 이미 완료한 시간대는 안내할 것이 없으므로 건너뛴다. 남은 시간대가 없으면 null(응답에서 생략).
+    // 이미 완료한 시간대는 안내할 것이 없으므로 건너뛰고, 남은 시간대가 없으면 null(응답에서 생략).
+    // 시간대 안에서도 이미 완료한 약은 안내에서 뺀다.
     private NextDoseResponse resolveNextDose(
             Senior senior, Map<MealTime, List<MedicationSchedule>> byMealTime, Set<TakenKey> takenKeys, LocalTime now) {
         return byMealTime.entrySet().stream()
@@ -98,7 +99,14 @@ public class HomeSummaryQueryService {
                 })
                 // 어르신이 식사 시각을 바꾸면 enum 순서와 실제 시각 순서가 어긋날 수 있어 시각으로 정렬한다
                 .min(Comparator.comparing(entry -> mealTimeOf(senior, entry.getKey())))
-                .map(entry -> homeSummaryConverter.toNextDose(entry.getValue().get(0), entry.getValue().size() - 1))
+                // 시간대가 미완료여도 그 안의 일부 약은 이미 완료일 수 있다(시각이 되기 전에 미리 체크한 경우).
+                // 완료 판정은 시간대 단위지만 안내는 약 단위라, 남은 약만 추려 첫 약과 나머지 수를 낸다.
+                .map(entry -> {
+                    List<MedicationSchedule> remaining = entry.getValue().stream()
+                            .filter(schedule -> !completionCalculator.isTaken(schedule, takenKeys))
+                            .toList();
+                    return homeSummaryConverter.toNextDose(remaining.get(0), remaining.size() - 1);
+                })
                 .orElse(null);
     }
 

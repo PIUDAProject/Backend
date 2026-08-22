@@ -3,7 +3,6 @@ package com.piuda.callcare.domain.home.service.query;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -11,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.piuda.callcare.domain.home.constant.HomeDisplayNames;
 import com.piuda.callcare.domain.home.converter.HomeCardConverter;
 import com.piuda.callcare.domain.home.dto.response.HomeCardResponse;
 import com.piuda.callcare.domain.home.dto.response.HospitalGroupResponse;
@@ -19,6 +19,7 @@ import com.piuda.callcare.domain.home.enums.CompletedStatus;
 import com.piuda.callcare.domain.home.enums.HomeCardMode;
 import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator;
 import com.piuda.callcare.domain.home.service.MealTimeCompletionCalculator.TakenKey;
+import com.piuda.callcare.domain.medication.entity.Medication;
 import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.medication.repository.MedicationScheduleRepository;
@@ -33,8 +34,6 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class HomeCardQueryService {
-
-    private static final String NO_HOSPITAL_NAME = "병원 정보 없음";
 
     private final SeniorRepository seniorRepository;
     private final MedicationScheduleRepository medicationScheduleRepository;
@@ -71,14 +70,25 @@ public class HomeCardQueryService {
         return new HomeCardResponse(targetDate, mode, mealGroups);
     }
 
+    // 병원 그룹 키 — 병원명이 있으면 병원명으로 묶고, 없으면 약 id로 흩어 개별 그룹이 되게 한다.
+    // groupingBy가 null 키를 허용하지 않는 문제도 이 레코드로 함께 해결된다.
+    private record HospitalGroupKey(String hospitalName, Long medicationId) {
+
+        private static HospitalGroupKey of(Medication medication) {
+            return (medication.getHospitalName() != null)
+                    ? new HospitalGroupKey(medication.getHospitalName(), null)
+                    : new HospitalGroupKey(null, medication.getId());
+        }
+    }
+
     private MealGroupResponse toMealGroup(
             MealTime mealTime, List<MedicationSchedule> schedules, HomeCardMode mode, Set<TakenKey> takenKeys) {
 
         // 2차: 같은 시간대 안에서 병원 단위 그룹 (조회 순서 유지, hospitalName이 null이면 "병원 정보 없음")
-        // groupingBy는 null 키를 허용하지 않으므로 Optional로 감싼다
+        // 병원명이 없는 약은 서로 다른 병원일 수 있으므로 묶지 않고 약마다 개별 그룹으로 낸다.
         List<HospitalGroupResponse> hospitalGroups = schedules.stream()
                 .collect(Collectors.groupingBy(
-                        s -> Optional.ofNullable(s.getMedication().getHospitalName()), LinkedHashMap::new, Collectors.toList()))
+                        s -> HospitalGroupKey.of(s.getMedication()), LinkedHashMap::new, Collectors.toList()))
                 .values().stream()
                 .map(group -> toHospitalGroup(group, mode, takenKeys))
                 .toList();
@@ -94,7 +104,7 @@ public class HomeCardQueryService {
             List<MedicationSchedule> group, HomeCardMode mode, Set<TakenKey> takenKeys) {
 
         String hospitalName = group.get(0).getMedication().getHospitalName();
-        String displayName = (hospitalName == null) ? NO_HOSPITAL_NAME : hospitalName;
+        String displayName = (hospitalName == null) ? HomeDisplayNames.NO_HOSPITAL_NAME : hospitalName;
 
         var medications = group.stream()
                 .map(schedule -> {
@@ -108,7 +118,7 @@ public class HomeCardQueryService {
                 })
                 .toList();
 
-        return new HospitalGroupResponse(null, displayName, medications);
+        return new HospitalGroupResponse(displayName, medications);
     }
 
     private Set<TakenKey> loadTakenKeys(Long seniorId, LocalDate date) {

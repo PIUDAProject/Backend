@@ -7,7 +7,6 @@ import com.piuda.callcare.domain.hospital.enums.HospitalSyncStatus;
 import com.piuda.callcare.domain.hospital.repository.HospitalSyncHistoryRepository;
 import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
@@ -19,7 +18,6 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class HospitalSyncCommandService {
 
     private static final int NUM_OF_ROWS = 100;
@@ -29,8 +27,19 @@ public class HospitalSyncCommandService {
     private final HiraHospitalClient hiraHospitalClient;
     private final HospitalUpsertService hospitalUpsertService;
     private final HospitalSyncHistoryRepository hospitalSyncHistoryRepository;
-    @Qualifier("applicationTaskExecutor")
     private final TaskExecutor taskExecutor;
+
+    public HospitalSyncCommandService(
+            HiraHospitalClient hiraHospitalClient,
+            HospitalUpsertService hospitalUpsertService,
+            HospitalSyncHistoryRepository hospitalSyncHistoryRepository,
+            @Qualifier("applicationTaskExecutor") TaskExecutor taskExecutor
+    ) {
+        this.hiraHospitalClient = hiraHospitalClient;
+        this.hospitalUpsertService = hospitalUpsertService;
+        this.hospitalSyncHistoryRepository = hospitalSyncHistoryRepository;
+        this.taskExecutor = taskExecutor;
+    }
 
     public record SyncStartResult(Long historyId, HospitalSyncStatus status) {
     }

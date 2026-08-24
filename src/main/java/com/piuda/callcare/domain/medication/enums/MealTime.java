@@ -8,8 +8,7 @@ import lombok.RequiredArgsConstructor;
 public enum MealTime {
     BREAKFAST("아침"),
     LUNCH("점심"),
-    DINNER("저녁"),
-    BEDTIME("취침 전");
+    DINNER("저녁");
 
     private final String description;
 }

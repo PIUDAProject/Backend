@@ -40,8 +40,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class CallReminderCommandService {
 
-    private static final List<MealTime> CALL_MEAL_TIMES = List.of(
-            MealTime.BREAKFAST, MealTime.LUNCH, MealTime.DINNER);
     private static final List<CallStatus> NOTIFIABLE_STATUSES = List.of(CallStatus.PENDING, CallStatus.NO_ANSWER, CallStatus.FAILED);
     // 최초 발신 후 이 시간이 지나도록 수신되지 않으면 1회 재발신한다
     private static final int RETRY_DELAY_MINUTES = 10;
@@ -69,7 +67,8 @@ public class CallReminderCommandService {
             if (!StringUtils.hasText(senior.getPhoneNumber())) {
                 continue;
             }
-            for (MealTime mealTime : CALL_MEAL_TIMES) {
+            // 모든 시간대에 전화를 건다 — 어르신에게 대응 식사 시각이 있는 시간대가 전부이기 때문이다.
+            for (MealTime mealTime : MealTime.values()) {
                 try {
                     sendFirstCallIfDue(senior, mealTime, today, now);
                 } catch (Exception e) {
@@ -101,7 +100,6 @@ public class CallReminderCommandService {
     }
 
     public String triggerMedicationCallForTest(Long seniorId, MealTime mealTime) {
-        validateCallMealTime(mealTime);
         Senior senior = seniorRepository.findById(seniorId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
 
@@ -358,12 +356,6 @@ public class CallReminderCommandService {
         } catch (Exception e) {
             log.error("보호자 FCM 푸시 발송 실패 - seniorId={}, callLogId={}", senior.getId(), callLog.getId(), e);
             return false;
-        }
-    }
-
-    private void validateCallMealTime(MealTime mealTime) {
-        if (!CALL_MEAL_TIMES.contains(mealTime)) {
-            throw new CallCareException(ErrorCode.UNSUPPORTED_MEAL_TIME);
         }
     }
 

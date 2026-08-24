@@ -43,6 +43,10 @@ public class FcmSendRecorder {
      * 이력은 recipient당 1건이다 — 기기가 몇 대든(토큰 여러 개) 사용자가 보는 알림은 하나이기 때문.
      * 토큰이 없거나 전송이 실패한 recipient도 저장한다. {@code Notification}은 인앱 알림 리스트 레코드라
      * 푸시가 실제로 도달했는지와 독립적이다.
+     * <p>
+     * 딥링크 값 중 {@code targetMedicationId}만 함께 저장한다. 나머지({@code data})는 푸시 payload로만
+     * 나가고 DB에 남지 않는데, 알림 센터 목록은 푸시가 아니라 이 행을 읽으므로 목록에서도 이동이
+     * 필요한 값(소진 알림의 대상 약)은 컬럼으로 남겨야 복원할 수 있다.
      *
      * @return 저장된 Notification id
      */
@@ -54,6 +58,7 @@ public class FcmSendRecorder {
             .senior(seniorRepository.getReferenceById(recipient.seniorId()))
             .type(request.type())
             .message(request.body())
+            .medicationId(request.targetMedicationId())
             .build());
         return notification.getId();
     }

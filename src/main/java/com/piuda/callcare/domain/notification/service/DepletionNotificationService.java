@@ -84,7 +84,9 @@ public class DepletionNotificationService {
                 Map.of(
                         NotificationDataKeys.SENIOR_ID, String.valueOf(senior.getId()),
                         NotificationDataKeys.MEDICATION_ID, String.valueOf(medication.getId())
-                )
+                ),
+                // 위 data는 푸시 payload로만 나간다. 알림 센터 목록은 DB를 읽으므로 대상 약을 따로 넘겨 저장한다.
+                medication.getId()
         ));
 
         // 명세상 이 알림은 SMS 폴백이 없다 — 실패는 원인을 구분해 남기는 것까지가 이 단계의 책임이다.

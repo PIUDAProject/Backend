@@ -147,13 +147,13 @@ class HomeCardQueryServiceTest {
     }
 
     @Test
-    @DisplayName("BEDTIME 스케줄은 ordinal 순서로 맨 뒤 그룹에 포함된다")
-    void bedtimeSchedule_sortedLast() {
-        // Given
+    @DisplayName("시간대 그룹은 조회 순서가 아니라 enum ordinal 순서로 정렬된다")
+    void mealGroups_sortedByOrdinal() {
+        // Given - 저녁이 아침보다 먼저 조회돼도
         Medication med10 = medication(10L, null);
         given(seniorRepository.existsById(SENIOR_ID)).willReturn(true);
         given(medicationScheduleRepository.findActiveSchedulesForHomeCards(SENIOR_ID, today, today.plusDays(1).atStartOfDay()))
-                .willReturn(List.of(schedule(med10, MealTime.BEDTIME), schedule(med10, MealTime.BREAKFAST)));
+                .willReturn(List.of(schedule(med10, MealTime.DINNER), schedule(med10, MealTime.BREAKFAST)));
         given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today)).willReturn(List.of());
 
         // When
@@ -161,7 +161,7 @@ class HomeCardQueryServiceTest {
 
         // Then
         assertThat(result.mealGroups()).extracting(MealGroupResponse::mealTime)
-                .containsExactly(MealTime.BREAKFAST, MealTime.BEDTIME);
+                .containsExactly(MealTime.BREAKFAST, MealTime.DINNER);
     }
 
     @Test

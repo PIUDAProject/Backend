@@ -44,11 +44,16 @@ public interface DrugConflictRepository extends JpaRepository<DrugConflict, Long
 
     // 목록 조회: 두 약을 함께 로딩(LazyInitialization 방지). 정렬은 서비스에서 등급 우선순위로 처리.
     // 두 약이 모두 활성(is_active=true)이고 삭제되지 않은 충돌만 노출 — 복용 종료·삭제된 약의 stale 충돌 방지.
+    // 보호자가 확인(is_resolved=true)한 조합도 제외한다 — 목록은 "아직 조치가 필요한 위험"만 보여준다.
+    // 제외는 목록에만 건다. 상세 조회는 확인한 충돌도 열리며(아래 findWithMedicationsById), 그것이
+    // 확인 취소(undo)를 따로 만들지 않고도 확인한 내용을 다시 볼 수 있는 경로다.
+    // 확인한 조합이라도 등급이 오르면 DrugConflict.updateAnalysis가 is_resolved를 false로 되돌려 다시 나온다.
     @Query("""
             SELECT dc FROM DrugConflict dc
             JOIN FETCH dc.medication1 m1
             JOIN FETCH dc.medication2 m2
             WHERE dc.senior.id = :seniorId
+              AND dc.isResolved = false
               AND m1.isActive = true
               AND m2.isActive = true
               AND m1.deletedAt IS NULL
@@ -70,4 +75,21 @@ public interface DrugConflictRepository extends JpaRepository<DrugConflict, Long
               AND m2.deletedAt IS NULL
             """)
     Optional<DrugConflict> findWithMedicationsById(@Param("conflictId") Long conflictId);
+
+    // 확인 처리용: 상세 조회와 같은 노출 조건에 보호자 소유 조건을 더한다.
+    // 소유자 조건을 조회에 넣어 남의 충돌을 확인 처리할 수 없게 한다 — 남의 것이면 NOT_FOUND가
+    // 나가는데, 403과 구분하지 않는 것이 의도다(id 존재 여부 노출 방지, 알림 읽음 처리와 같은 논리).
+    @Query("""
+            SELECT dc FROM DrugConflict dc
+            JOIN dc.senior s
+            JOIN FETCH dc.medication1 m1
+            JOIN FETCH dc.medication2 m2
+            WHERE dc.id = :conflictId
+              AND s.user.id = :userId
+              AND m1.isActive = true
+              AND m2.isActive = true
+              AND m1.deletedAt IS NULL
+              AND m2.deletedAt IS NULL
+            """)
+    Optional<DrugConflict> findWithMedicationsByIdAndUserId(@Param("conflictId") Long conflictId, @Param("userId") Long userId);
 }

@@ -75,11 +75,12 @@ public class DrugConflictNotificationService {
         }
 
         // 멱등키는 충돌 행 id가 아니라 "약 쌍 + 등급"으로 잡는다.
-        // 행 id를 쓰면, 약을 잠시 비활성화했다 되돌리는 것만으로 재알림이 나간다 — 그 사이 재분석의
-        // stale 정리가 행을 지우고 다시 저장하면서 id가 바뀌기 때문이다. 사용자가 겪는 사건은
-        // "같은 두 약의 같은 위험"으로 동일하므로, 키도 그 단위여야 한다.
+        // 사용자가 겪는 사건은 "같은 두 약의 같은 위험"이고, 그 사건이 같으면 행 id가 달라져도 같은 알림이다.
+        // 행 id가 바뀌는 경로가 실제로 있다 — 약 정보가 바뀌어 매칭이 사라지면 재분석의 stale 정리가 행을
+        // 지우고, 정보가 돌아오면 새 id로 다시 저장된다. 행 id를 키로 쓰면 그때 같은 경고가 다시 나간다.
+        // (약을 잠시 비활성화했다 되돌리는 경우는 여기 해당하지 않는다 — 비활성 약이 낀 행은 stale 정리
+        //  대상이 아니라 id가 그대로 유지된다. deleteStaleConflicts 주석 참고.)
         // 등급을 함께 넣어 "같은 조합 1회"와 "등급이 오르면 다시"를 한 규칙으로 표현한다.
-        // (행 삭제 이력·isResolved 보존은 스키마가 필요해 9단계 알림 센터와 함께 다룬다.)
         String key = "notify:conflict:" + conflict.getMedication1().getId()
                 + ":" + conflict.getMedication2().getId()
                 + ":" + conflict.getSeverity().name();
@@ -111,7 +112,7 @@ public class DrugConflictNotificationService {
                 conflict.getId(), senior.getId(), conflict.getSeverity(), event.escalated(), result.status());
     }
 
-    // 시간대는 enum 선언 순서(아침→점심→저녁→취침 전)로 정렬한다. DB 정렬은 STRING 알파벳순이라 쓸 수 없다.
+    // 시간대는 enum 선언 순서(아침→점심→저녁)로 정렬한다. DB 정렬은 STRING 알파벳순이라 쓸 수 없다.
     private Map<Long, List<MealTime>> loadMealTimes(Medication first, Medication second) {
         return medicationScheduleRepository.findAllByMedication_IdIn(List.of(first.getId(), second.getId())).stream()
                 .collect(Collectors.groupingBy(

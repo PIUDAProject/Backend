@@ -74,6 +74,10 @@ public class DrugConflict {
     // 반환값은 "등급이 올라갔는가"다 — 조합은 그대로여도 주의 → 금기로 올라간 것은 새 안전 정보라
     // 다시 알려야 하고, 등급이 내려가거나 설명만 바뀐 것은 알림 대상이 아니다.
     // 갱신 여부(changed)가 아니라 상승 여부를 돌려주는 이유는, 호출자가 필요한 판단이 그것뿐이기 때문이다.
+    //
+    // 등급이 올라가면 확인 상태도 함께 되돌린다 — 보호자가 확인한 것은 "그때의 등급"이지 이 조합 자체가
+    // 아니다. 되돌리지 않으면 재알림은 나가는데 목록(확인한 충돌 제외)에는 없는 상태가 되어,
+    // 푸시를 받고 앱을 열면 해당 충돌이 사라져 있다.
     public boolean updateAnalysis(ConflictSeverity severity, String conflictDescription) {
         boolean escalated = severity.getPriority() > this.severity.getPriority();
         boolean changed = this.severity != severity
@@ -81,6 +85,9 @@ public class DrugConflict {
         if (changed) {
             this.severity = severity;
             this.conflictDescription = conflictDescription;
+        }
+        if (escalated) {
+            this.isResolved = false;
         }
         return escalated;
     }

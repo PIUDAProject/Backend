@@ -28,7 +28,7 @@ public class HomeSummaryController {
 
     @Operation(summary = "홈 대시보드 요약 조회",
             description = "상단 요약 카드용 집계입니다. 오늘=예정+완료+다음 복용, 내일=예정만, 어제=완료만 내려갑니다. "
-                    + "예정/완료는 아침·점심·저녁 기준 시간대 수(최대 3)이며 취침 전은 세지 않습니다. date 생략 시 오늘입니다.")
+                    + "예정/완료는 아침·점심·저녁 기준 시간대 수(최대 3)입니다. date 생략 시 오늘입니다.")
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<HomeSummaryResponse>> getSummary(
             @RequestParam Long seniorId,

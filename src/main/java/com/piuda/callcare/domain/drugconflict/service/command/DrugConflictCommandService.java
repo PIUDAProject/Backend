@@ -74,10 +74,27 @@ public class DrugConflictCommandService {
         deleteStaleConflicts(seniorId, medications, matchedPairs);
     }
 
+    // 보호자가 충돌을 "확인함"으로 처리한다 — 확인한 조합은 목록에서 빠진다(상세는 계속 열린다).
+    // 목록과 같은 노출 조건으로 찾는다: 목록에 뜨지도 않는 충돌을 확인 처리할 일은 없다.
+    // 여기에 소유자(userId) 조건을 더해 남의 충돌은 아예 조회되지 않게 한다 — 경고를 화면에서
+    // 지우는 상태 변경이라 조회 API들처럼 소유권 검증을 미뤄 둘 수 없다.
+    // 이미 확인한 충돌을 다시 확인해도 결과가 같아 멱등하다.
+    public void resolve(Long userId, Long conflictId) {
+        DrugConflict conflict = drugConflictRepository.findWithMedicationsByIdAndUserId(conflictId, userId)
+                .orElseThrow(() -> new CallCareException(ErrorCode.DRUG_CONFLICT_NOT_FOUND));
+
+        conflict.resolve(); // dirty checking
+    }
+
     // 이번 분석에서 다시 매칭되지 않은 기존 충돌을 제거 — 약 정보가 바뀌어 더 이상 충돌이 아닌 쌍이
     // 옛 등급으로 목록에 남는 것을 막는다(upsert만으로는 사라진 충돌을 정리할 수 없다).
     // 삭제 범위는 이번 분석 대상(활성·미삭제) 약들로만 이뤄진 쌍에 한정한다 —
     // 비활성·삭제된 약이 낀 행은 애초에 매칭 대상이 아니었을 뿐이므로 지우면 분석 이력이 사라진다.
+    //
+    // 이 한정이 확인 상태(is_resolved)를 지키는 장치이기도 하다. 약을 잠시 비활성화했다 되돌려도 그 약이 낀
+    // 행은 여기서 지워지지 않아 재활성 시 같은 행이 그대로 재사용된다(확인 상태·createdAt 보존, 등급이
+    // 그대로면 재알림도 없다). 그래서 남는 삭제 경로는 "두 약 모두 활성인데 매칭이 사라진 경우"뿐이고,
+    // 그때는 충돌이 실제로 소멸한 것이라 행을 지우는 것이 맞다.
     private void deleteStaleConflicts(Long seniorId, List<Medication> analyzed, Set<MedicationPair> matchedPairs) {
         Set<Long> analyzedIds = analyzed.stream().map(Medication::getId).collect(Collectors.toSet());
 

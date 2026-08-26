@@ -99,12 +99,12 @@ public class MedicationCommandService {
     private List<MedicationSchedule> createSchedules(Medication medication, Integer timesPerDay) {
         if (timesPerDay == null) return List.of();
 
-        // 1회 → 아침 / 2회 → 아침+저녁 / 3회 → 아침+점심+저녁 / 4회 이상 → 전체
+        // 1회 → 아침 / 2회 → 아침+저녁 / 3회 이상 → 아침+점심+저녁
+        // 시간대가 셋뿐이라 3개가 상한이다. 한 시간대에 여러 번 복용하는 표현은 아직 없다(백로그).
         List<MealTime> mealTimes = switch (timesPerDay) {
             case 1 -> List.of(MealTime.BREAKFAST);
             case 2 -> List.of(MealTime.BREAKFAST, MealTime.DINNER);
-            case 3 -> List.of(MealTime.BREAKFAST, MealTime.LUNCH, MealTime.DINNER);
-            default -> List.of(MealTime.BREAKFAST, MealTime.LUNCH, MealTime.DINNER, MealTime.BEDTIME);
+            default -> List.of(MealTime.BREAKFAST, MealTime.LUNCH, MealTime.DINNER);
         };
 
         return mealTimes.stream()

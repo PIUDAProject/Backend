@@ -6,8 +6,6 @@ import java.time.LocalTime;
 
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.senior.entity.Senior;
-import com.piuda.callcare.global.exception.CallCareException;
-import com.piuda.callcare.global.exception.ErrorCode;
 
 import lombok.experimental.UtilityClass;
 
@@ -22,13 +20,13 @@ public class NotificationTimeCalculator {
 		return LocalDateTime.of(baseDate, mealTimeValue).plusMinutes(CALL_OFFSET_MINUTES);
 	}
 
-	// MealTime → Senior의 LocalTime 필드 매핑 (BEDTIME은 식사 시각 필드가 없어 미지원)
+	// MealTime → Senior의 LocalTime 필드 매핑. 모든 시간대가 대응 필드를 가지므로 분기가 전부 덮인다
+	// — 시간대를 늘리면 여기서 컴파일 에러가 나고, 그것이 대응 필드를 함께 만들라는 신호다.
 	private LocalTime resolveMealTime(Senior senior, MealTime mealTime) {
 		return switch (mealTime) {
 			case BREAKFAST -> senior.getBreakfastTime();
 			case LUNCH -> senior.getLunchTime();
 			case DINNER -> senior.getDinnerTime();
-			default -> throw new CallCareException(ErrorCode.UNSUPPORTED_MEAL_TIME);
 		};
 	}
 }

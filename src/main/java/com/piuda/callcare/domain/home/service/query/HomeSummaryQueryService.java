@@ -36,10 +36,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class HomeSummaryQueryService {
 
-    // 요약은 아침·점심·저녁만 센다(기획). BEDTIME은 Senior에 시각 필드가 없어 전화 알림에서도 제외돼 있고,
-    // 홈 카드에는 그대로 네 번째 그룹으로 남는다 — 요약 숫자와 카드 그룹 수가 다를 수 있는 지점이다.
-    private static final List<MealTime> SUMMARY_MEAL_TIMES = List.of(MealTime.BREAKFAST, MealTime.LUNCH, MealTime.DINNER);
-
     private final SeniorRepository seniorRepository;
     private final MedicationScheduleRepository medicationScheduleRepository;
     private final MedicationLogRepository medicationLogRepository;
@@ -64,7 +60,6 @@ public class HomeSummaryQueryService {
         // 카드 조회와 같은 쿼리를 쓴다 — 대상 약 집합(활성·복용기간·소프트 삭제 규칙)이 갈리면 안 된다
         Map<MealTime, List<MedicationSchedule>> byMealTime = medicationScheduleRepository
                 .findActiveSchedulesForHomeCards(seniorId, targetDate, targetDate.plusDays(1).atStartOfDay()).stream()
-                .filter(schedule -> SUMMARY_MEAL_TIMES.contains(schedule.getMealTime()))
                 .collect(Collectors.groupingBy(MedicationSchedule::getMealTime, TreeMap::new, Collectors.toList()));
 
         Set<TakenKey> takenKeys = mode.tracksCompletion()
@@ -110,13 +105,13 @@ public class HomeSummaryQueryService {
                 .orElse(null);
     }
 
-    // BEDTIME은 대응하는 시각 컬럼이 없어 여기 오지 않는다(SUMMARY_MEAL_TIMES에서 이미 걸러짐)
+    // 모든 시간대가 대응 시각 컬럼을 갖는다. 그래도 반환값이 null일 수 있는데, 시간대가 없어서가 아니라
+    // 어르신의 그 식사 시각이 비어 있어서다(Senior의 세 시각 컬럼은 nullable) — 호출부가 그 null을 거른다.
     private LocalTime mealTimeOf(Senior senior, MealTime mealTime) {
         return switch (mealTime) {
             case BREAKFAST -> senior.getBreakfastTime();
             case LUNCH -> senior.getLunchTime();
             case DINNER -> senior.getDinnerTime();
-            default -> null;
         };
     }
 }

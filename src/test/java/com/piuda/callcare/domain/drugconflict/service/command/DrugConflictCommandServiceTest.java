@@ -41,6 +41,7 @@ import com.piuda.callcare.global.exception.ErrorCode;
 class DrugConflictCommandServiceTest {
 
     private static final Long SENIOR_ID = 1L;
+    private static final Long USER_ID = 100L;
 
     @InjectMocks
     private DrugConflictCommandService drugConflictCommandService;
@@ -267,6 +268,51 @@ class DrugConflictCommandServiceTest {
 
         // Then
         then(eventPublisher).should(never()).publishEvent(any(DrugConflictDetectedEvent.class));
+    }
+
+    @Test
+    @DisplayName("확인 처리: 목록 노출 조건 + 소유자 조건으로 찾아 isResolved를 true로 바꾼다")
+    void resolve_marksResolved() {
+        // Given
+        DrugConflict conflict = DrugConflict.builder()
+                .senior(senior())
+                .medication1(medication(10L, null))
+                .medication2(medication(20L, null))
+                .severity(ConflictSeverity.CAUTION)
+                .conflictDescription("주의")
+                .build();
+        given(drugConflictRepository.findWithMedicationsByIdAndUserId(777L, USER_ID)).willReturn(Optional.of(conflict));
+
+        // When
+        drugConflictCommandService.resolve(USER_ID, 777L);
+
+        // Then - dirty checking으로 반영되므로 save 호출은 없다
+        assertThat(conflict.getIsResolved()).isTrue();
+        then(drugConflictRepository).should(never()).save(any(DrugConflict.class));
+    }
+
+    @Test
+    @DisplayName("예외: 확인 처리할 충돌이 없으면(또는 이미 목록에서 빠졌으면) DRUG_CONFLICT_NOT_FOUND")
+    void resolve_throws_when_notFound() {
+        // Given
+        given(drugConflictRepository.findWithMedicationsByIdAndUserId(anyLong(), anyLong())).willReturn(Optional.empty());
+
+        // When / Then
+        assertThatThrownBy(() -> drugConflictCommandService.resolve(USER_ID, 777L))
+                .isInstanceOf(CallCareException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DRUG_CONFLICT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("예외: 남의 어르신 충돌은 소유자 조건에 걸려 조회되지 않아 DRUG_CONFLICT_NOT_FOUND")
+    void resolve_throws_when_notOwner() {
+        // Given - 다른 보호자 id로 조회하면 소유자 조건 때문에 결과가 없다
+        given(drugConflictRepository.findWithMedicationsByIdAndUserId(777L, 999L)).willReturn(Optional.empty());
+
+        // When / Then
+        assertThatThrownBy(() -> drugConflictCommandService.resolve(999L, 777L))
+                .isInstanceOf(CallCareException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DRUG_CONFLICT_NOT_FOUND);
     }
 
     // ---- fixtures ----

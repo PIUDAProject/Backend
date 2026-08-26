@@ -39,6 +39,8 @@ public class SecurityConfig {
 				// TODO: 인증 필터 도입 시 제거하고, 로그인 사용자의 seniorId 소유권 검증으로 전환
 				.requestMatchers(HttpMethod.GET, "/api/home/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/home/**").permitAll()
+				// 확인 처리는 경고를 화면에서 지우는 상태 변경이라 아래 permitAll보다 앞에 두고 인증을 건다.
+				.requestMatchers(HttpMethod.POST, "/api/conflicts/*/resolve").authenticated()
 				// TODO: 인증 필터 도입 시 제거하고, 로그인 사용자의 seniorId 소유권 검증으로 전환
 				.requestMatchers(HttpMethod.GET, "/api/conflicts/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/conflicts/**").permitAll()

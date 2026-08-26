@@ -90,25 +90,6 @@ class HomeSummaryQueryServiceTest {
     }
 
     @Test
-    @DisplayName("오늘: 취침 전 약만 있는 시간대는 예정·완료 어디에도 세지 않는다")
-    void todayMode_excludesBedtime() {
-        // Given - 아침 + 취침 전
-        Medication med10 = medication(10L);
-        givenSchedules(today, List.of(
-                schedule(med10, MealTime.BREAKFAST),
-                schedule(med10, MealTime.BEDTIME)
-        ));
-        given(medicationLogRepository.findBySenior_IdAndTakenDate(SENIOR_ID, today)).willReturn(List.of());
-
-        // When
-        HomeSummaryResponse result = homeSummaryQueryService.getSummary(SENIOR_ID, today, LocalTime.of(9, 0));
-
-        // Then - 최대 3(아침·점심·저녁)만 대상이고, 취침 전은 다음 복용 후보도 아니다
-        assertThat(result.scheduledCount()).isEqualTo(1);
-        assertThat(result.nextDose()).isNull();
-    }
-
-    @Test
     @DisplayName("내일: 예정만 내려가고 완료·다음 복용은 생략되며 로그를 조회하지 않는다")
     void futureMode_scheduledOnly() {
         // Given

@@ -16,8 +16,8 @@ public interface MedicationScheduleRepository extends JpaRepository<MedicationSc
     void deleteAllByMedication_Id(Long medicationId);
 
     // 충돌 알림 문구용: 두 약의 복용 시간대를 한 번에 조회. 발송이 트랜잭션 밖이라 지연 로딩을 쓸 수 없고,
-    // 약이 2건뿐이라 IN 절 한 번이면 충분하다. 정렬은 서비스에서 enum 순서(아침→점심→저녁→취침)로 처리한다
-    // — mealTime이 STRING이라 DB 정렬은 알파벳순(BEDTIME이 먼저)이 되어 사람이 읽는 순서와 어긋난다.
+    // 약이 2건뿐이라 IN 절 한 번이면 충분하다. 정렬은 서비스에서 enum 순서(아침→점심→저녁)로 처리한다
+    // — mealTime이 STRING이라 DB 정렬은 알파벳순(BREAKFAST→DINNER→LUNCH)이 되어 사람이 읽는 순서와 어긋난다.
     // 호출부가 스케줄을 약별로 묶느라 medication에 접근하므로 JOIN FETCH로 함께 로딩한다.
     @Query("""
             SELECT ms FROM MedicationSchedule ms

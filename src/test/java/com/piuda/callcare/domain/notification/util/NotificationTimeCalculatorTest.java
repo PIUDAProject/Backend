@@ -1,7 +1,6 @@
 package com.piuda.callcare.domain.notification.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,8 +11,6 @@ import org.junit.jupiter.api.Test;
 
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.senior.entity.Senior;
-import com.piuda.callcare.global.exception.CallCareException;
-import com.piuda.callcare.global.exception.ErrorCode;
 
 @DisplayName("NotificationTimeCalculator 단위 테스트")
 class NotificationTimeCalculatorTest {
@@ -55,15 +52,4 @@ class NotificationTimeCalculatorTest {
 		assertThat(firstCall).isEqualTo(LocalDateTime.of(2026, 6, 30, 0, 20));
 	}
 
-	@Test
-	@DisplayName("예외 케이스: BEDTIME은 식사 시각 필드가 없어 UNSUPPORTED_MEAL_TIME 예외가 발생한다")
-	void bedtime_throws_unsupported() {
-		// Given
-		Senior senior = seniorWithTimes(LocalTime.of(8, 0), LocalTime.of(12, 0), LocalTime.of(18, 0));
-
-		// When / Then
-		assertThatThrownBy(() -> NotificationTimeCalculator.firstCallTime(senior, MealTime.BEDTIME, BASE_DATE))
-			.isInstanceOf(CallCareException.class)
-			.hasFieldOrPropertyWithValue("errorCode", ErrorCode.UNSUPPORTED_MEAL_TIME);
-	}
 }

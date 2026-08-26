@@ -97,10 +97,18 @@ public class CallReminderCommandService {
         }
     }
 
+    // 한 건의 실패가 스윕 전체를 멈추지 않도록 건별로 예외를 가둔다(다른 스윕 2개와 동일 패턴).
+    // 통보는 선점 뒤에 이뤄지므로, 가두지 않으면 한 건의 오류가 그 분의 나머지 미수신 통보까지 막는다.
     public void notifyGuardiansForUnansweredCalls(LocalDateTime now) {
         LocalDateTime notificationThreshold = now.minusMinutes(GUARDIAN_SWEEP_OFFSET_MINUTES);
-        callLogRepository.findGuardianNotificationTargets(NOTIFIABLE_STATUSES, notificationThreshold)
-                .forEach(this::notifyGuardian);
+        for (CallLog callLog : callLogRepository.findGuardianNotificationTargets(NOTIFIABLE_STATUSES, notificationThreshold)) {
+            try {
+                notifyGuardian(callLog);
+            } catch (Exception e) {
+                log.error("미수신 통보 처리 실패 - callLogId={}, seniorId={}, mealTime={}",
+                        callLog.getId(), callLog.getSenior().getId(), callLog.getMealTime(), e);
+            }
+        }
     }
 
     public String triggerMedicationCallForTest(Long seniorId, MealTime mealTime) {
@@ -299,8 +307,18 @@ public class CallReminderCommandService {
 
         // 인앱 알림은 발송 채널보다 먼저, 채널 성공 여부와 무관하게 남긴다. Notification은 알림 센터
         // 목록의 레코드이지 푸시 전달 기록이 아니다 — SMS로만 통보되거나 FCM이 미설정이어도 남아야 한다.
+        //
+        // 저장이 실패해도 통보는 계속한다. 선점이 이미 커밋돼 다음 스윕이 이 행을 다시 집지 않으므로,
+        // 여기서 예외를 흘려보내면 미수신이 통째로 유실된다. 이력이 없으면 알림 센터에 안 남고 푸시의
+        // 읽음 처리가 안 될 뿐이다 — 유실되면 안 되는 안전 알림이라 통보 전달을 기록보다 우선한다.
         FcmSendRequest pushRequest = missedCallPushRequest(callLog);
-        Long notificationId = fcmSendRecorder.saveNotification(pushRequest);
+        Long notificationId = null;
+        try {
+            notificationId = fcmSendRecorder.saveNotification(pushRequest);
+        } catch (Exception e) {
+            log.error("미수신 알림 이력 저장 실패(통보는 계속) - seniorId={}, callLogId={}",
+                    callLog.getSenior().getId(), callLog.getId(), e);
+        }
 
         // 보호자는 앱을 쓰므로 FCM 푸시가 1순위다. 전달되지 못했으면(앱 미설치·전송 실패·FCM 미설정)
         // 미수신 통보는 유실되면 안 되는 안전 알림이라 SMS로 폴백한다.

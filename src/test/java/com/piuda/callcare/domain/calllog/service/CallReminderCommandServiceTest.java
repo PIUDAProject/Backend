@@ -272,4 +272,47 @@ class CallReminderCommandServiceTest {
                 .containsExactly(entry(NotificationDataKeys.SENIOR_ID, String.valueOf(SENIOR_ID)));
         assertThat(request.targetMedicationId()).isNull();
     }
+
+    @Test
+    @DisplayName("예외 케이스: 이력 저장이 실패해도 통보(푸시·SMS)는 계속된다")
+    void notifyGuardian_still_notifies_when_saving_history_fails() {
+        // Given — 선점은 이미 커밋돼 다음 스윕이 이 행을 다시 집지 않는다. 여기서 멈추면 미수신이 유실된다.
+        CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
+        given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendRecorder.saveNotification(any(FcmSendRequest.class)))
+                .willThrow(new RuntimeException("DB 오류"));
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.completed(1, 0, 0));
+
+        // When
+        callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
+
+        // Then
+        then(fcmSendService).should(times(1)).sendRecorded(any(FcmSendRequest.class), any());
+        then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString());
+    }
+
+    @Test
+    @DisplayName("예외 케이스: 통보 한 건이 실패해도 스윕의 나머지 건은 계속 처리된다")
+    void notifyGuardiansForUnansweredCalls_continues_after_one_failure() {
+        // Given
+        CallLog failing = createRetriedCallLog(CallStatus.PENDING);
+        CallLog healthy = createRetriedCallLog(CallStatus.PENDING);
+        ReflectionTestUtils.setField(healthy, "id", CALL_LOG_ID + 1);
+        given(callLogRepository.findGuardianNotificationTargets(any(), any()))
+                .willReturn(List.of(failing, healthy));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID))
+                .willThrow(new RuntimeException("DB 오류"));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID + 1)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.completed(1, 0, 0));
+
+        // When
+        callReminderCommandService.notifyGuardiansForUnansweredCalls(RETRY_NOW);
+
+        // Then — 뒤 건은 정상 통보돼야 한다
+        then(fcmSendRecorder).should(times(1)).saveNotification(any(FcmSendRequest.class));
+        then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString());
+    }
 }

@@ -19,12 +19,14 @@ import com.piuda.callcare.domain.calllog.repository.CallLogRepository;
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.medication.repository.MedicationScheduleRepository;
 import com.piuda.callcare.domain.medicationlog.service.command.MedicationLogCommandService;
+import com.piuda.callcare.domain.notification.constant.NotificationDataKeys;
 import com.piuda.callcare.domain.notification.enums.NotificationType;
 import com.piuda.callcare.domain.notification.util.NotificationTimeCalculator;
 import com.piuda.callcare.domain.senior.entity.Senior;
 import com.piuda.callcare.domain.senior.repository.SeniorRepository;
 import com.piuda.callcare.domain.senior.service.sms.SmsSender;
 import com.piuda.callcare.global.config.fcm.FcmRecipient;
+import com.piuda.callcare.global.config.fcm.FcmSendRecorder;
 import com.piuda.callcare.global.config.fcm.FcmSendRequest;
 import com.piuda.callcare.global.config.fcm.FcmSendResult;
 import com.piuda.callcare.global.config.fcm.FcmSendService;
@@ -57,6 +59,8 @@ public class CallReminderCommandService {
     private final SmsSender smsSender;
     private final MedicationLogCommandService medicationLogCommandService;
     private final FcmSendService fcmSendService;
+    // 미수신 알림은 푸시 성공 여부와 무관하게 남아야 해서 이력 저장을 직접 부른다(발송 계층에 위임하지 않는다)
+    private final FcmSendRecorder fcmSendRecorder;
 
     @Value("${coolsms.sender:}")
     private String senderNumber;
@@ -93,10 +97,18 @@ public class CallReminderCommandService {
         }
     }
 
+    // 한 건의 실패가 스윕 전체를 멈추지 않도록 건별로 예외를 가둔다(다른 스윕 2개와 동일 패턴).
+    // 통보는 선점 뒤에 이뤄지므로, 가두지 않으면 한 건의 오류가 그 분의 나머지 미수신 통보까지 막는다.
     public void notifyGuardiansForUnansweredCalls(LocalDateTime now) {
         LocalDateTime notificationThreshold = now.minusMinutes(GUARDIAN_SWEEP_OFFSET_MINUTES);
-        callLogRepository.findGuardianNotificationTargets(NOTIFIABLE_STATUSES, notificationThreshold)
-                .forEach(this::notifyGuardian);
+        for (CallLog callLog : callLogRepository.findGuardianNotificationTargets(NOTIFIABLE_STATUSES, notificationThreshold)) {
+            try {
+                notifyGuardian(callLog);
+            } catch (Exception e) {
+                log.error("미수신 통보 처리 실패 - callLogId={}, seniorId={}, mealTime={}",
+                        callLog.getId(), callLog.getSenior().getId(), callLog.getMealTime(), e);
+            }
+        }
     }
 
     public String triggerMedicationCallForTest(Long seniorId, MealTime mealTime) {
@@ -281,29 +293,43 @@ public class CallReminderCommandService {
                         schedule.getMedication(), date, callLog.getMealTime(), true));
     }
 
+    // 미수신 통보 — 재발신까지 모두 미수신인 "최종 상태"에서만 도달하는 지점이다(두 진입 경로 모두
+    // retryCount >= 1을 이미 확인한다). 시도별 기록은 CallLog 상태머신이 갖고 있으므로 사용자 대면
+    // 알림은 여기서 1건만 남긴다 — 미수신은 시도 이력이 아니라 최종 결과 통지다.
     private void notifyGuardian(CallLog callLog) {
-        if (Boolean.TRUE.equals(callLog.getIsNotified())) {
+        // 발송 "전에" 통보 권한을 선점한다. 실패하면 다른 경로가 이미 통보한 것이므로 조용히 빠진다.
+        // 선점 후 발송은 이 파일의 재발신(markRetryPreempted)과 소진·충돌 알림이 쓰는 것과 같은 규칙이다
+        // — 푸시·SMS는 회수할 수 없으니 한 번 놓치는 쪽이 두 번 보내는 쪽보다 낫다.
+        if (callLogRepository.preemptNotification(callLog.getId()) == 0) {
             return;
         }
+        callLog.markAsNotified(); // 벌크 UPDATE는 영속성 컨텍스트를 건너뛰므로 메모리 상태만 맞춰 준다
 
-        boolean hasRecipient = false;
-        boolean sentAny = false;
+        // 인앱 알림은 발송 채널보다 먼저, 채널 성공 여부와 무관하게 남긴다. Notification은 알림 센터
+        // 목록의 레코드이지 푸시 전달 기록이 아니다 — SMS로만 통보되거나 FCM이 미설정이어도 남아야 한다.
+        //
+        // 저장이 실패해도 통보는 계속한다. 선점이 이미 커밋돼 다음 스윕이 이 행을 다시 집지 않으므로,
+        // 여기서 예외를 흘려보내면 미수신이 통째로 유실된다. 이력이 없으면 알림 센터에 안 남고 푸시의
+        // 읽음 처리가 안 될 뿐이다 — 유실되면 안 되는 안전 알림이라 통보 전달을 기록보다 우선한다.
+        FcmSendRequest pushRequest = missedCallPushRequest(callLog);
+        Long notificationId = null;
+        try {
+            notificationId = fcmSendRecorder.saveNotification(pushRequest);
+        } catch (Exception e) {
+            log.error("미수신 알림 이력 저장 실패(통보는 계속) - seniorId={}, callLogId={}",
+                    callLog.getSenior().getId(), callLog.getId(), e);
+        }
 
         // 보호자는 앱을 쓰므로 FCM 푸시가 1순위다. 전달되지 못했으면(앱 미설치·전송 실패·FCM 미설정)
         // 미수신 통보는 유실되면 안 되는 안전 알림이라 SMS로 폴백한다.
-        if (notifyGuardianByPush(callLog)) {
-            hasRecipient = true;
-            sentAny = true;
-        } else {
+        if (!notifyGuardianByPush(pushRequest, notificationId, callLog)) {
             String guardianPhoneNumber = callLog.getSenior().getUser().getPhoneNumber();
             if (StringUtils.hasText(guardianPhoneNumber)) {
-                hasRecipient = true;
                 String guardianText = "[콜케어] " + callLog.getSenior().getName() + "님의 "
                         + callLog.getMealTime().getDescription()
                         + " 복약 전화 알림이 미수신되었습니다. 확인이 필요합니다.";
                 try {
                     smsSender.send(senderNumber, guardianPhoneNumber, guardianText);
-                    sentAny = true;
                 } catch (Exception e) {
                     log.error("보호자 SMS 폴백 발송 실패 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId(), e);
                 }
@@ -315,46 +341,45 @@ public class CallReminderCommandService {
 
         String seniorPhoneNumber = callLog.getSenior().getPhoneNumber();
         if (StringUtils.hasText(seniorPhoneNumber)) {
-            hasRecipient = true;
             String seniorText = "[콜케어] " + callLog.getMealTime().getDescription()
                     + " 약 복용 전화 알림을 받지 못했습니다. 약 복용 여부를 확인해주세요.";
             try {
                 smsSender.send(senderNumber, seniorPhoneNumber, seniorText);
-                sentAny = true;
             } catch (Exception e) {
                 log.error("부모님 SMS 발송 실패 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId(), e);
             }
         } else {
             log.warn("부모님 전화번호 없음 - seniorId={}, callLogId={}", callLog.getSenior().getId(), callLog.getId());
         }
-
-        if (sentAny || !hasRecipient) {
-            callLog.markAsNotified();
-            callLogRepository.save(callLog);
-        }
     }
 
-    // 보호자 FCM 푸시 1건. FcmSendRequest는 "한 요청 = 한 수신자"라 다른 보호자에게 새지 않는다.
-    // FcmSendService는 트랜잭션 밖 호출이 계약인데 이 서비스에는 클래스 레벨 @Transactional이 없어 충족한다.
-    // data의 딥링크 키는 알림 종류를 아는 이 트리거가 채운다(type·notificationId는 발송 계층이 얹는다).
-    private boolean notifyGuardianByPush(CallLog callLog) {
+    // 미수신 알림 1건의 내용. 이력 저장과 푸시 발송이 같은 값을 써야 하므로 한 곳에서 만든다.
+    // FcmSendRequest는 "한 요청 = 한 수신자"라 다른 보호자에게 새지 않는다.
+    //
+    // 딥링크는 seniorId 하나뿐이다 — 미수신은 전용 상세 화면이 기획에 없어 어르신 홈으로 이동하고,
+    // 그 이동에 필요한 값이 그것뿐이다(소진 → 약 노트, 충돌 → 리포트와 같은 규약).
+    // type·notificationId는 모든 알림에 공통이라 발송 계층이 얹는다.
+    private FcmSendRequest missedCallPushRequest(CallLog callLog) {
         Senior senior = callLog.getSenior();
+        return new FcmSendRequest(
+                NotificationType.MISSED_CALL,
+                "복약 전화 미수신",
+                senior.getName() + "님이 " + callLog.getMealTime().getDescription()
+                        + " 복약 전화를 받지 않았습니다. 확인이 필요합니다.",
+                new FcmRecipient(senior.getUser().getId(), senior.getId()),
+                Map.of(NotificationDataKeys.SENIOR_ID, String.valueOf(senior.getId()))
+        );
+    }
+
+    // 이력은 이미 저장했으므로 sendRecorded로 보낸다 — send를 쓰면 같은 알림이 한 번 더 저장된다.
+    // FcmSendService는 트랜잭션 밖 호출이 계약인데 이 서비스에는 클래스 레벨 @Transactional이 없어 충족한다.
+    private boolean notifyGuardianByPush(FcmSendRequest request, Long notificationId, CallLog callLog) {
         try {
-            FcmSendResult result = fcmSendService.send(new FcmSendRequest(
-                    NotificationType.MISSED_CALL,
-                    "복약 전화 미수신",
-                    senior.getName() + "님이 " + callLog.getMealTime().getDescription()
-                            + " 복약 전화를 받지 않았습니다. 확인이 필요합니다.",
-                    new FcmRecipient(senior.getUser().getId(), senior.getId()),
-                    Map.of(
-                            "seniorId", String.valueOf(senior.getId()),
-                            "mealTime", callLog.getMealTime().name(),
-                            "callDate", callLog.getCallDate().toString()
-                    )
-            ));
+            FcmSendResult result = fcmSendService.sendRecorded(request, notificationId);
             return result.status() == FcmSendStatus.SENT;
         } catch (Exception e) {
-            log.error("보호자 FCM 푸시 발송 실패 - seniorId={}, callLogId={}", senior.getId(), callLog.getId(), e);
+            log.error("보호자 FCM 푸시 발송 실패 - seniorId={}, callLogId={}",
+                    callLog.getSenior().getId(), callLog.getId(), e);
             return false;
         }
     }

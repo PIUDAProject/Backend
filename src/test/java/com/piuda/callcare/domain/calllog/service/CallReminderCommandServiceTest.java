@@ -2,6 +2,7 @@ package com.piuda.callcare.domain.calllog.service;
 
 import static com.piuda.callcare.domain.calllog.fixture.CallLogFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,9 +33,12 @@ import com.piuda.callcare.domain.medication.entity.MedicationSchedule;
 import com.piuda.callcare.domain.medication.enums.MealTime;
 import com.piuda.callcare.domain.medication.repository.MedicationScheduleRepository;
 import com.piuda.callcare.domain.medicationlog.service.command.MedicationLogCommandService;
+import com.piuda.callcare.domain.notification.constant.NotificationDataKeys;
+import com.piuda.callcare.domain.notification.enums.NotificationType;
 import com.piuda.callcare.domain.senior.entity.Senior;
 import com.piuda.callcare.domain.senior.repository.SeniorRepository;
 import com.piuda.callcare.domain.senior.service.sms.SmsSender;
+import com.piuda.callcare.global.config.fcm.FcmSendRecorder;
 import com.piuda.callcare.global.config.fcm.FcmSendRequest;
 import com.piuda.callcare.global.config.fcm.FcmSendResult;
 import com.piuda.callcare.global.config.fcm.FcmSendService;
@@ -51,6 +56,7 @@ class CallReminderCommandServiceTest {
     @Mock private SmsSender smsSender;
     @Mock private MedicationLogCommandService medicationLogCommandService;
     @Mock private FcmSendService fcmSendService;
+    @Mock private FcmSendRecorder fcmSendRecorder;
 
     @BeforeEach
     void setUp() {
@@ -127,7 +133,7 @@ class CallReminderCommandServiceTest {
         // Then
         assertThat(callLog.getStatus()).isEqualTo(CallStatus.NO_ANSWER);
         assertThat(callLog.getIsNotified()).isFalse();
-        then(fcmSendService).should(never()).send(any(FcmSendRequest.class));
+        then(fcmSendService).should(never()).sendRecorded(any(FcmSendRequest.class), any());
         then(smsSender).should(never()).send(anyString(), anyString(), anyString());
     }
 
@@ -137,13 +143,14 @@ class CallReminderCommandServiceTest {
         // Given
         CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
         given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
-        given(fcmSendService.send(any(FcmSendRequest.class))).willReturn(FcmSendResult.completed(1, 0, 0));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any())).willReturn(FcmSendResult.completed(1, 0, 0));
 
         // When
         callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
 
         // Then
-        then(fcmSendService).should(times(1)).send(any(FcmSendRequest.class));
+        then(fcmSendService).should(times(1)).sendRecorded(any(FcmSendRequest.class), any());
         then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString());
         then(smsSender).should(never()).send(eq(SENDER_NUMBER), eq(GUARDIAN_PHONE), anyString());
         assertThat(callLog.getIsNotified()).isTrue();
@@ -155,7 +162,8 @@ class CallReminderCommandServiceTest {
         // Given
         CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
         given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
-        given(fcmSendService.send(any(FcmSendRequest.class))).willReturn(FcmSendResult.noToken());
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any())).willReturn(FcmSendResult.noToken());
 
         // When
         callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
@@ -185,7 +193,7 @@ class CallReminderCommandServiceTest {
         assertThat(callLog.getStatus()).isEqualTo(CallStatus.ANSWERED);
         then(medicationLogCommandService).should(times(2))
                 .writeLog(any(), eq(CALL_DATE), eq(MEAL_TIME), eq(true));
-        then(fcmSendService).should(never()).send(any(FcmSendRequest.class));
+        then(fcmSendService).should(never()).sendRecorded(any(FcmSendRequest.class), any());
     }
 
     @Test
@@ -205,5 +213,106 @@ class CallReminderCommandServiceTest {
         // Then
         assertThat(callLog.getStatus()).isEqualTo(CallStatus.FAILED);
         assertThat(callLog.getRetryCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("정상 케이스: 푸시가 전달되지 않아도 인앱 알림 이력은 남는다")
+    void notifyGuardian_records_notification_even_when_push_not_delivered() {
+        // Given — FCM 미설정과 같은 상태(발송 시도조차 못 함)
+        CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
+        given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.notConfigured());
+
+        // When
+        callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
+
+        // Then — SMS로 통보가 나갔으므로 알림 센터에도 1건이 남아야 한다
+        then(fcmSendRecorder).should(times(1)).saveNotification(any(FcmSendRequest.class));
+        then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(GUARDIAN_PHONE), anyString());
+    }
+
+    @Test
+    @DisplayName("정상 케이스: 통보 선점에 실패하면(이미 통보됨) 알림을 저장하지도 발송하지도 않는다")
+    void notifyGuardian_does_nothing_when_preemption_lost() {
+        // Given — 웹훅과 통보 스윕이 같은 row를 집은 상황. 조건부 UPDATE가 0행이면 이번 호출은 패배자다.
+        CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
+        given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(0);
+
+        // When
+        callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
+
+        // Then
+        then(fcmSendRecorder).should(never()).saveNotification(any(FcmSendRequest.class));
+        then(fcmSendService).should(never()).sendRecorded(any(FcmSendRequest.class), any());
+        then(smsSender).should(never()).send(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("정상 케이스: 미수신 알림의 딥링크 값은 seniorId 하나뿐이다 (어르신 홈으로 이동)")
+    void notifyGuardian_push_carries_only_senior_id_as_deep_link() {
+        // Given
+        CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
+        given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.completed(1, 0, 0));
+
+        // When
+        callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
+
+        // Then
+        ArgumentCaptor<FcmSendRequest> captor = ArgumentCaptor.forClass(FcmSendRequest.class);
+        then(fcmSendRecorder).should().saveNotification(captor.capture());
+        FcmSendRequest request = captor.getValue();
+        assertThat(request.type()).isEqualTo(NotificationType.MISSED_CALL);
+        assertThat(request.data())
+                .containsExactly(entry(NotificationDataKeys.SENIOR_ID, String.valueOf(SENIOR_ID)));
+        assertThat(request.targetMedicationId()).isNull();
+    }
+
+    @Test
+    @DisplayName("예외 케이스: 이력 저장이 실패해도 통보(푸시·SMS)는 계속된다")
+    void notifyGuardian_still_notifies_when_saving_history_fails() {
+        // Given — 선점은 이미 커밋돼 다음 스윕이 이 행을 다시 집지 않는다. 여기서 멈추면 미수신이 유실된다.
+        CallLog callLog = createRetriedCallLog(CallStatus.PENDING);
+        given(callLogRepository.findByMessageId("message-1")).willReturn(Optional.of(callLog));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID)).willReturn(1);
+        given(fcmSendRecorder.saveNotification(any(FcmSendRequest.class)))
+                .willThrow(new RuntimeException("DB 오류"));
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.completed(1, 0, 0));
+
+        // When
+        callReminderCommandService.applyCallResult("message-1", "NO_ANSWER");
+
+        // Then
+        then(fcmSendService).should(times(1)).sendRecorded(any(FcmSendRequest.class), any());
+        then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString());
+    }
+
+    @Test
+    @DisplayName("예외 케이스: 통보 한 건이 실패해도 스윕의 나머지 건은 계속 처리된다")
+    void notifyGuardiansForUnansweredCalls_continues_after_one_failure() {
+        // Given
+        CallLog failing = createRetriedCallLog(CallStatus.PENDING);
+        CallLog healthy = createRetriedCallLog(CallStatus.PENDING);
+        ReflectionTestUtils.setField(healthy, "id", CALL_LOG_ID + 1);
+        given(callLogRepository.findGuardianNotificationTargets(any(), any()))
+                .willReturn(List.of(failing, healthy));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID))
+                .willThrow(new RuntimeException("DB 오류"));
+        given(callLogRepository.preemptNotification(CALL_LOG_ID + 1)).willReturn(1);
+        given(fcmSendService.sendRecorded(any(FcmSendRequest.class), any()))
+                .willReturn(FcmSendResult.completed(1, 0, 0));
+
+        // When
+        callReminderCommandService.notifyGuardiansForUnansweredCalls(RETRY_NOW);
+
+        // Then — 뒤 건은 정상 통보돼야 한다
+        then(fcmSendRecorder).should(times(1)).saveNotification(any(FcmSendRequest.class));
+        then(smsSender).should(times(1)).send(eq(SENDER_NUMBER), eq(SENIOR_PHONE), anyString());
     }
 }

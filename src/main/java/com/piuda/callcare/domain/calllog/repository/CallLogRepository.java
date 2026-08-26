@@ -3,8 +3,10 @@ package com.piuda.callcare.domain.calllog.repository;
 import com.piuda.callcare.domain.calllog.entity.CallLog;
 import com.piuda.callcare.domain.calllog.enums.CallStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -57,4 +59,17 @@ public interface CallLogRepository extends JpaRepository<CallLog, Long> {
             @Param("statuses") Collection<CallStatus> statuses,
             @Param("calledBefore") LocalDateTime calledBefore
     );
+
+    // 통보 선점 — is_notified를 발송 "전에" 원자적으로 확정한다. 반환값이 1일 때만 이번 호출이 통보 주체다.
+    //
+    // 엔티티의 isNotified를 읽어 분기하는 방식은 원자적이지 않다. 웹훅 즉시 통보(applyCallResult)와
+    // 통보 스윕(notifyGuardiansForUnansweredCalls)이 같은 row를 동시에 집으면 둘 다 가드를 통과해
+    // 알림이 2건 저장된다. 조건부 UPDATE의 갱신 행 수로 승자를 하나만 남긴다.
+    //
+    // CallLog의 UNIQUE(senior_id, meal_time, call_date)가 곧 "1 미수신 사건"의 단위이므로,
+    // 이 선점 하나로 (어르신, 시간대, 날짜)당 알림 1건이 보장된다 — 별도 멱등 저장소가 필요 없다.
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE CallLog cl SET cl.isNotified = true WHERE cl.id = :callLogId AND cl.isNotified = false")
+    int preemptNotification(@Param("callLogId") Long callLogId);
 }

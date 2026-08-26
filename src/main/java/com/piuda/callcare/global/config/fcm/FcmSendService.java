@@ -67,6 +67,33 @@ public class FcmSendService {
         // 발송 전에 이력을 남긴다 — notificationId를 payload에 실어야 알림 탭 시 읽음 처리가 가능하다.
         Long notificationId = fcmSendRecorder.saveNotification(request);
 
+        return dispatch(messaging, request, notificationId);
+    }
+
+    /**
+     * 이력을 <b>호출자가 이미 저장한</b> 경우의 발송 — 저장을 건너뛰고 푸시만 보낸다.
+     * <p>
+     * {@link #send}는 FCM이 설정돼 있을 때만 이력을 남긴다. 푸시 외에 다른 통보 수단이 없는 알림
+     * (소진·충돌)은 그래도 되지만, <b>SMS 폴백이 있는 미수신 통보는 다르다</b> — FCM 미설정 환경에서
+     * SMS로는 통보가 나갔는데 알림 센터에는 아무것도 남지 않아 "통보했다"와 "알림함에 있다"가 어긋난다.
+     * 그런 트리거는 {@link FcmSendRecorder#saveNotification}으로 먼저 이력을 남긴 뒤 이 메서드로 발송하고,
+     * 저장된 id를 넘겨 푸시 payload의 {@code notificationId}가 그 행을 가리키게 한다.
+     * <p>
+     * 호출 계약은 {@link #send}와 같다 — <b>트랜잭션 밖에서 호출할 것.</b>
+     *
+     * @param notificationId 호출자가 이미 저장한 이력의 id
+     */
+    public FcmSendResult sendRecorded(FcmSendRequest request, Long notificationId) {
+        FirebaseMessaging messaging = firebaseMessagingProvider.getIfAvailable();
+        if (messaging == null) {
+            log.warn("[FCM] 서비스 계정 키 미설정 — 푸시 발송을 건너뜁니다 (type={})", request.type());
+            return FcmSendResult.notConfigured();
+        }
+
+        return dispatch(messaging, request, notificationId);
+    }
+
+    private FcmSendResult dispatch(FirebaseMessaging messaging, FcmSendRequest request, Long notificationId) {
         List<FcmToken> activeTokens = fcmTokenRepository.findByUser_IdAndIsActiveTrue(request.recipient().userId());
         if (activeTokens.isEmpty()) {
             // 앱 미설치·토큰 미등록. 재시도해도 결과가 같으므로 호출자가 다른 채널을 고려해야 한다.

@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 // 표시값과 딥링크 조회키를 나눠 싣는다(9단계 규약). seniorName·typeLabel은 화면에 그리는 값이고,
 // seniorId·medicationId는 화면 이동에 쓰는 값이다. 조회키는 원본을 그대로 둔다 —
 // 가리키는 약이 나중에 삭제돼도 대체값으로 바꾸지 않는다.
+//
+// 유형별 이동 대상: LOW_STOCK → medicationId로 약 노트, DRUG_CONFLICT → seniorId로 충돌 리포트,
+// MISSED_CALL → seniorId로 어르신 홈. 미수신은 전용 상세 화면이 기획에 없어 seniorId만 쓰므로
+// 이동을 위한 추가 컬럼이 없다.
 @Schema(description = "알림 센터 항목")
 public record NotificationResponse(
 
@@ -22,7 +26,8 @@ public record NotificationResponse(
         @Schema(description = "읽음 여부") boolean isRead,
         @Schema(description = "읽은 시각 (안 읽었으면 null)") LocalDateTime readAt,
         @Schema(description = "알림 발생 시각") LocalDateTime createdAt,
-        @Schema(description = "어느 어르신에 대한 알림인지 (딥링크 조회키)") Long seniorId,
+        @Schema(description = "어느 어르신에 대한 알림인지 (딥링크 조회키). MISSED_CALL은 전용 상세 화면이 없어 "
+                + "이 값으로 어르신 홈으로 이동한다.") Long seniorId,
         @Schema(description = "어르신 이름 (표시값)") String seniorName,
         @Schema(description = "딥링크 대상 약 ID — LOW_STOCK만 채워지고 나머지 유형은 null. "
                 + "해당 약이 삭제됐어도 원본 값을 그대로 내려준다.") Long medicationId

@@ -9,7 +9,10 @@ import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
-@Document(indexName = "drug_info")
+// indexName("drug_info")은 물리 인덱스가 아니라 alias다 (DrugIndexManager.ALIAS와 반드시 일치).
+// 물리 인덱스는 DrugIndexManager가 타임스탬프로 생성하고 alias를 스왑한다.
+// createIndex=false로 두어 Spring Data가 alias 이름의 물리 인덱스를 자동 생성하지 못하게 한다.
+@Document(indexName = "drug_info", createIndex = false)
 @Getter
 @Builder
 @NoArgsConstructor

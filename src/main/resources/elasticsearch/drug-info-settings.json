@@ -1,0 +1,51 @@
+{
+  "index": {
+    "number_of_replicas": 0,
+    "max_ngram_diff": 19
+  },
+  "analysis": {
+    "tokenizer": {
+      "drug_edge_ngram_tokenizer": {
+        "type": "edge_ngram",
+        "min_gram": 1,
+        "max_gram": 20,
+        "token_chars": ["letter", "digit"]
+      },
+      "drug_ngram_tokenizer": {
+        "type": "ngram",
+        "min_gram": 2,
+        "max_gram": 4,
+        "token_chars": ["letter", "digit"]
+      }
+    },
+    "filter": {
+      "drug_chosung_edge_filter": {
+        "type": "edge_ngram",
+        "min_gram": 1,
+        "max_gram": 20
+      }
+    },
+    "analyzer": {
+      "drug_search_analyzer": {
+        "type": "custom",
+        "tokenizer": "standard",
+        "filter": ["lowercase"]
+      },
+      "drug_edge_ngram_analyzer": {
+        "type": "custom",
+        "tokenizer": "drug_edge_ngram_tokenizer",
+        "filter": ["lowercase"]
+      },
+      "drug_ngram_analyzer": {
+        "type": "custom",
+        "tokenizer": "drug_ngram_tokenizer",
+        "filter": ["lowercase"]
+      },
+      "drug_chosung_index_analyzer": {
+        "type": "custom",
+        "tokenizer": "keyword",
+        "filter": ["drug_chosung_edge_filter"]
+      }
+    }
+  }
+}

@@ -3,11 +3,26 @@ package com.piuda.callcare.domain.druginfo.converter;
 import com.piuda.callcare.domain.druginfo.document.DrugDocument;
 import com.piuda.callcare.domain.druginfo.dto.response.DrugAutofillResponse;
 import com.piuda.callcare.domain.druginfo.dto.response.DrugSearchResponse;
+import com.piuda.callcare.domain.druginfo.dto.response.DrugSyncHistoryResponse;
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
+import com.piuda.callcare.domain.druginfo.entity.DrugSyncHistory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DrugInfoConverter {
+
+    // DrugSyncHistory → DrugSyncHistoryResponse (재색인 이력 조회 응답용)
+    public DrugSyncHistoryResponse toSyncHistoryResponse(DrugSyncHistory history) {
+        return new DrugSyncHistoryResponse(
+                history.getId(),
+                history.getStatus(),
+                history.getStartedAt(),
+                history.getFinishedAt(),
+                history.getIndexedCount(),
+                history.getTargetIndex(),
+                history.getErrorMessage()
+        );
+    }
 
     // DrugInfo(MySQL) → DrugDocument(Elasticsearch 색인용)
     public DrugDocument toDocument(DrugInfo drugInfo) {

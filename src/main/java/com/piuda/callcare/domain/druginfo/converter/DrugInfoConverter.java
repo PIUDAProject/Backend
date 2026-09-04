@@ -6,6 +6,7 @@ import com.piuda.callcare.domain.druginfo.dto.response.DrugSearchResponse;
 import com.piuda.callcare.domain.druginfo.dto.response.DrugSyncHistoryResponse;
 import com.piuda.callcare.domain.druginfo.entity.DrugInfo;
 import com.piuda.callcare.domain.druginfo.entity.DrugSyncHistory;
+import com.piuda.callcare.global.util.HangulChosungExtractor;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -25,10 +26,12 @@ public class DrugInfoConverter {
     }
 
     // DrugInfo(MySQL) → DrugDocument(Elasticsearch 색인용)
+    // itemNameChosung: 초성 검색용 문자열을 색인 시점에 생성 (ES에 한글 자모 분해기가 없어 Java에서 만든다)
     public DrugDocument toDocument(DrugInfo drugInfo) {
         return DrugDocument.builder()
                 .itemSeq(drugInfo.getItemSeq())
                 .itemName(drugInfo.getItemName())
+                .itemNameChosung(HangulChosungExtractor.extract(drugInfo.getItemName()))
                 .entpName(drugInfo.getEntpName())
                 .prductType(drugInfo.getPrductType())
                 .spcltyPblc(drugInfo.getSpcltyPblc())

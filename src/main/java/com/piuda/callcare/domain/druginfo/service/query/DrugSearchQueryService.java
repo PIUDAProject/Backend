@@ -23,7 +23,7 @@ public class DrugSearchQueryService {
     private final DrugInfoQueryService drugInfoQueryService;
     private final DrugInfoConverter drugInfoConverter;
 
-    // Elasticsearch로 약품명 자동완성 검색 (match_phrase_prefix, 최대 20건)
+    // Elasticsearch 약품명 검색 (자동완성·오타·중간 단어·초성 통합, 관련도 순, 최대 20건)
     public List<DrugSearchResponse> search(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             throw new CallCareException(ErrorCode.INVALID_PARAMETER);

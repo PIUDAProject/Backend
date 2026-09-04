@@ -34,6 +34,7 @@ public class DrugDocument {
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "drug_search_analyzer"),
             otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "autocomplete", type = FieldType.Text,
                             analyzer = "drug_edge_ngram_analyzer", searchAnalyzer = "drug_search_analyzer"),
                     @InnerField(suffix = "ngram", type = FieldType.Text,
@@ -43,9 +44,8 @@ public class DrugDocument {
     private String itemName;
 
     // 약품명의 초성 문자열 (색인 시 HangulChosungExtractor로 생성). "ㅌㅇㄹㄴ" 같은 초성 검색용.
-    // 검색 시에는 사용자가 입력한 초성 문자열을 그대로 이 필드에 매칭한다(keyword 검색 애널라이저).
-    @Field(type = FieldType.Text,
-            analyzer = "drug_chosung_index_analyzer", searchAnalyzer = "keyword")
+    // 통짜 토큰(keyword)으로 색인하고 검색은 match_phrase_prefix로 접두 매칭 → 입력 길이 제한 없음.
+    @Field(type = FieldType.Text, analyzer = "keyword", searchAnalyzer = "keyword")
     private String itemNameChosung;
 
     @Field(type = FieldType.Keyword)

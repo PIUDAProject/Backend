@@ -18,13 +18,6 @@
         "token_chars": ["letter", "digit"]
       }
     },
-    "filter": {
-      "drug_chosung_edge_filter": {
-        "type": "edge_ngram",
-        "min_gram": 1,
-        "max_gram": 20
-      }
-    },
     "analyzer": {
       "drug_search_analyzer": {
         "type": "custom",
@@ -40,11 +33,6 @@
         "type": "custom",
         "tokenizer": "drug_ngram_tokenizer",
         "filter": ["lowercase"]
-      },
-      "drug_chosung_index_analyzer": {
-        "type": "custom",
-        "tokenizer": "keyword",
-        "filter": ["drug_chosung_edge_filter"]
       }
     }
   }

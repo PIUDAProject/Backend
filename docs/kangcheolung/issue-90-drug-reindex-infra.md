@@ -43,7 +43,7 @@ ES는 기존 인덱스의 필드 타입·애널라이저를 변경할 수 없으
 ```
 
 - 코드(`DrugSearchRepository`, `DrugDocument`)는 항상 alias `drug_info`만 참조
-- 물리 인덱스는 `drug_info-{yyyyMMddHHmmss}` 형태로 매 재색인마다 새로 생성
+- 물리 인덱스는 `drug_info-{yyyyMMddHHmmssSSS}` 형태로 매 재색인마다 새로 생성 (밀리초까지 붙여 연속 재색인 간 이름 충돌 방지)
 - 재색인: 새 물리 인덱스 생성 → 전체 색인 → **alias 원자 스왑** → 구 인덱스 정리
 - 스왑하는 순간까지 사용자는 기존 인덱스로 검색을 계속함 → 다운타임 없음
 
@@ -53,9 +53,9 @@ ES는 기존 인덱스의 필드 타입·애널라이저를 변경할 수 없으
 
 | 항목 | 선택 | 근거 |
 |---|---|---|
-| alias / 물리 인덱스명 | alias `drug_info`, 물리 `drug_info-yyyyMMddHHmmss` | 타임스탬프 접미사는 사전순 정렬 = 시간순 정렬 → 구 인덱스 정리가 단순 |
+| alias / 물리 인덱스명 | alias `drug_info`, 물리 `drug_info-yyyyMMddHHmmssSSS` | 고정 폭 타임스탬프라 사전순 = 시간순. 밀리초까지 붙여 연속 재색인 충돌 방지. `IndexOperations.create()`가 false면(이미 존재) 즉시 중단 |
 | `@Document` | `createIndex = false` 추가 | Spring Data가 `drug_info`라는 이름의 **물리 인덱스**를 자동 생성해버리면 alias를 못 만든다 |
-| 동시 실행 차단 | **Redis 락** (`IdempotencyKeyStore.tryAcquire("drug:reindex", 10분)`) | 이미 존재하는 프리미티브 재사용. TTL이 붙어 있어 재색인 중 프로세스가 죽어도 락이 자동 만료됨 (병원 도메인의 DB status 방식은 stuck RUNNING을 수동 정리해야 함) |
+| 동시 실행 차단 | **Redis 락** (`IdempotencyKeyStore.tryAcquire("drug:reindex", 30분)`) — 재색인 API와 부팅 부트스트랩 공용 | 이미 존재하는 프리미티브 재사용. TTL로 크래시 시 자동 만료. 락 획득 전 단계(이력 저장 등)에서 실패해도 락을 해제한다. **한계**: 소유 토큰이 없어 재색인이 TTL(30분)을 초과하면 두 번째 재색인이 겹칠 수 있음 — 데이터가 크게 늘면 fencing 토큰 분산 락으로 교체 |
 | 비동기 실행 | `@Qualifier("applicationTaskExecutor")` (병원 동기화와 동일) | API는 이력 ID를 담아 즉시 반환(200, `ApiResponse.success`), 진행 상태는 이력 조회로 확인 |
 | 구 인덱스 보관 | 최신 2개(현재 + 직전 1개) 유지, 나머지 삭제 | 문제 발생 시 직전 인덱스로 수동 롤백 여지 |
 | 부팅 초기화 | alias 없으면 최초 1회만 생성·색인, 있으면 스킵 | 재색인은 명시적 API 액션으로 일원화 (`esCount == dbCount` 가드 제거) |
@@ -97,14 +97,14 @@ Spring Data Elasticsearch `ElasticsearchOperations` + Elastic Java Client `Elast
 
 | 메서드 | 구현 | 용도 |
 |---|---|---|
-| `resolveAliasTargets()` | `elasticsearchClient.indices().getAlias(name=drug_info)` → 404면 빈 Set | alias가 현재 가리키는 물리 인덱스 집합 |
+| `resolveAliasTargets()` | `getAlias(name=drug_info)` → **404만** 빈 Set, 네트워크/인증/서버 오류는 전파 | alias가 현재 가리키는 물리 인덱스 집합. 오류를 alias 부재로 오인하면 스왑이 구 인덱스를 안 지워 alias가 여러 인덱스를 가리킴 |
 | `aliasExists()` | `resolveAliasTargets()` 비어있지 않음 | 부트스트랩 스킵 판단 |
 | `dropLegacyConcreteIndexIfPresent()` | alias 없는데 `indexOps("drug_info").exists()` true면 delete | alias 전환 전 코드가 만든 물리 인덱스 정리 |
-| `createTimestampedIndex()` | `indexOps(DrugDocument.class).createSettings()/createMapping()` → `indexOps(물리명).create(settings, mapping)` | `DrugDocument` 매핑을 적용한 새 물리 인덱스 생성, 이름 반환 |
-| `bulkIndex(docs, indexName)` | `elasticsearchOperations.save(docs, IndexCoordinates.of(indexName))` | 물리 인덱스에 문서 색인 (Bulk) |
+| `createTimestampedIndex()` | `indexOps(DrugDocument.class).createSettings()/createMapping()` → `indexOps(물리명).create(settings, mapping)`. 반환값 false면 `IllegalStateException` | `DrugDocument` 매핑을 적용한 새 물리 인덱스 생성, 이름 반환 |
+| `bulkIndex(docs, indexName)` | `save(docs, IndexCoordinates.of(indexName))` 후 `indexOps(target).refresh()` | 물리 인덱스에 문서 색인(Bulk) + 명시적 refresh — 색인 응답만으로는 검색 가능 상태를 보장 못 하므로 alias 스왑 직후 새 인덱스가 비어 보이지 않게 함 |
 | `switchAlias(newIndex, previousIndices)` | `AliasActions`에 `Add(new)` + `Remove(old...)` 를 담아 **한 요청**으로 | alias 원자 스왑 |
 | `deleteIndex(name)` | `indexOps(name).delete()` | 재색인 실패 시 잔존 인덱스 정리 |
-| `deleteObsoleteIndices()` | `drug_info-*` 목록 → 최신순 정렬 → 최신 2개 + 현재 alias 대상 제외 삭제 | 구 인덱스 정리 (alias가 가리키는 인덱스는 절대 삭제 안 함) |
+| `deleteObsoleteIndices()` | `drug_info-*` 목록 → 최신순 → 최신 2개 + 현재 alias 대상 제외 삭제 | 구 인덱스 정리. 목록 조회 예외도 삼켜 스왑 후 정리 실패가 재색인 상태를 FAILED로 바꾸지 않음 |
 
 ### alias 원자 스왑이 왜 무중단인가
 
@@ -125,7 +125,7 @@ ES `POST /_aliases`는 `actions` 배열의 모든 액션을 **하나의 원자 �
 
 ```
 startReindex()                          [동기, API 스레드]
-  ├─ idempotencyKeyStore.tryAcquire("drug:reindex", 10m)
+  ├─ idempotencyKeyStore.tryAcquire("drug:reindex", 30m)
   │     └─ 실패 → CallCareException(DRUG_REINDEX_ALREADY_RUNNING)  → 409
   ├─ DrugSyncHistory.start() 저장 (status=RUNNING)
   ├─ taskExecutor.execute(() -> executeReindex(historyId))
@@ -135,13 +135,13 @@ startReindex()                          [동기, API 스레드]
 executeReindex(historyId)                [비동기, applicationTaskExecutor]
   try:
     previousTargets = resolveAliasTargets()
-    newIndex        = createTimestampedIndex()          // drug_info-yyyyMMddHHmmss
+    newIndex        = createTimestampedIndex()          // drug_info-yyyyMMddHHmmssSSS, create()==false면 중단
     documents       = drugInfoRepository.findAll()
                         .filter(itemSeq != null)
                         .map(converter::toDocument)
-    bulkIndex(documents, newIndex)
+    bulkIndex(documents, newIndex)                      // save 후 refresh 까지
     switchAlias(newIndex, previousTargets)              // 원자 스왑
-    deleteObsoleteIndices()                             // 최신 2개 + 현재 alias 대상 유지
+    safeDeleteObsoleteIndices()                         // 실패해도 재색인은 SUCCESS 유지
     history.success(documents.size(), newIndex)
   catch Exception:
     history.fail(message)
@@ -154,7 +154,8 @@ executeReindex(historyId)                [비동기, applicationTaskExecutor]
 
 - **스왑 전 실패**: 새 인덱스만 남고 alias는 구 인덱스를 계속 가리킴 → `cleanUpFailedIndex`가 새 인덱스 삭제 → 완전 원상복구
 - **스왑 후 후속 단계 실패**: alias는 이미 새 인덱스를 가리킴(정상) → 새 인덱스는 남김
-- **프로세스 크래시**: Redis 락은 TTL(10분)로 자동 만료 → 이후 재색인 요청 가능. RUNNING 이력은 남지만 락과 무관 (이력은 관측용)
+- **프로세스 크래시**: Redis 락은 TTL(30분)로 자동 만료 → 이후 재색인 요청 가능. RUNNING 이력은 남지만 락과 무관 (이력은 관측용)
+- **락 획득 후 초기화 단계 실패**: `startReindex`는 이력 저장·작업 제출 실패 시에도 락을 해제하고, `executeReindex`는 이력 조회 실패까지 감싸 `finally`에서 항상 락 해제
 
 ---
 
@@ -163,18 +164,25 @@ executeReindex(historyId)                [비동기, applicationTaskExecutor]
 ```
 run()  @Order(2)
   try:
-    if aliasExists():  log "생략"; return           // 이미 구성됨
-    dropLegacyConcreteIndexIfPresent()              // 구버전 잔존 물리 인덱스 제거
-    newIndex = createTimestampedIndex()
-    documents = drugInfoRepository.findAll()...
-    bulkIndex(documents, newIndex)
-    switchAlias(newIndex, Set.of())                 // 최초 생성이라 remove 대상 없음
+    if aliasExists():  log "생략"; return                  // 이미 구성됨
+    if !tryAcquire("drug:reindex", 5m):                    // 다른 인스턴스가 색인 중
+        log "생략"; return
+    try:
+      if aliasExists():  log "생략"; return                // 락 획득 사이에 끝났을 수 있음 (재확인)
+      dropLegacyConcreteIndexIfPresent()                   // 구버전 잔존 물리 인덱스 제거
+      newIndex = createTimestampedIndex()
+      bulkIndex(drugInfoRepository.findAll()..., newIndex) // save + refresh
+      switchAlias(newIndex, Set.of())                      // 최초 생성이라 remove 대상 없음
+    finally:
+      release("drug:reindex")
   catch Exception:
-    log.error(...)                                  // 부팅 계속, 검색은 MySQL 폴백
+    log.error(...)                                         // 부팅 계속, 검색은 MySQL 폴백
 ```
 
 - alias가 이미 있으면 부팅 시 **아무것도 하지 않는다** — 데이터 갱신은 재색인 API 책임
 - `esCount == dbCount` 가드는 제거됨 (알고리즘상 부트스트랩은 alias 유무만 본다)
+- 여러 인스턴스가 동시에 기동해도 재색인 API와 **같은 Redis 락**을 잡으므로 부트스트랩이 한 번만 돈다.
+  락을 잡은 뒤 `aliasExists()`를 재확인해 그 사이 다른 인스턴스가 끝낸 경우를 거른다.
 
 ---
 
@@ -249,9 +257,13 @@ curl -s -X POST localhost:8080/api/admin/drugs/reindex -H "Authorization: Bearer
 |---|---|
 | 락 선점 시 | `DRUG_REINDEX_ALREADY_RUNNING`, 이력 미저장 |
 | 정상 흐름 | `createTimestampedIndex → bulkIndex → switchAlias → deleteObsoleteIndices` 호출, 이력 `SUCCESS`, 락 해제 |
+| 이력 저장 실패 | 락 해제 후 예외 전파 |
+| 비동기 작업 제출 실패 | 이력 `FAILED`, 락 해제, `DRUG_REINDEX_FAILED` |
+| 스왑 후 정리 실패 | 재색인은 `SUCCESS` 유지, 락 해제 |
 | 스왑 실패 | 이력 `FAILED`, 실패 인덱스 `deleteIndex` 호출, 락 해제 |
 
-ES 통합 테스트는 인프라 부재로 생략, 위 수동 절차로 대체.
+`DrugIndexManager`(ES 직접 조작)와 부팅 부트스트랩의 동시성은 로컬 ES를 띄운 수동 절차로 검증한다.
+ES Testcontainers 도입 시 alias 스왑 직후 검색 결과 검증 통합 테스트를 추가한다.
 
 ---
 
@@ -260,7 +272,7 @@ ES 통합 테스트는 인프라 부재로 생략, 위 수동 절차로 대체.
 | 증상 | 원인 | 대응 |
 |---|---|---|
 | 부팅 로그 `alias-not-found` 후 색인 안 됨 | `drug_info`가 alias 아닌 물리 인덱스로 이미 존재 (구버전) | `dropLegacyConcreteIndexIfPresent`가 자동 처리. 안 되면 `curl -XDELETE localhost:9200/drug_info` 후 재기동 |
-| 재색인이 항상 409 | 이전 재색인이 락을 해제 못 하고 프로세스 종료 | 최대 10분 후 TTL 만료. 즉시 필요 시 `redis-cli DEL idem:drug:reindex` |
+| 재색인이 항상 409 | 이전 재색인이 락을 해제 못 하고 프로세스 종료 | 최대 30분 후 TTL 만료. 즉시 필요 시 `redis-cli DEL idem:drug:reindex` |
 | `drug_info-*` 인덱스가 계속 쌓임 | `deleteObsoleteIndices` 실패 (권한/네트워크) | 로그 확인 후 수동 삭제. 다음 재색인에서 재시도됨 |
 | 검색 결과가 재색인 후에도 옛날 데이터 | alias 스왑은 됐으나 클라이언트/프록시 캐시 | ES 레벨 캐시 아님. 앱 재시작 불필요, 잠시 후 재조회 |
 

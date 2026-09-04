@@ -41,6 +41,8 @@ public enum ErrorCode {
 
 	// DRUG
 	DRUG_NOT_FOUND(HttpStatus.NOT_FOUND, "DRUG-001", "약품 정보를 찾을 수 없습니다."),
+	DRUG_REINDEX_ALREADY_RUNNING(HttpStatus.CONFLICT, "DRUG-002", "이미 진행 중인 약품 재색인이 있습니다."),
+	DRUG_REINDEX_FAILED(HttpStatus.BAD_GATEWAY, "DRUG-003", "약품 재색인에 실패했습니다."),
 
 	// MEDICATION
 	MEDICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "MEDICATION-001", "약 정보를 찾을 수 없습니다."),

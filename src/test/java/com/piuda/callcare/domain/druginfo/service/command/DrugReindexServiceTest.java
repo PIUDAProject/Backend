@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.doAnswer;
+import static org.mockito.BDDMockito.doThrow;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -97,6 +98,55 @@ class DrugReindexServiceTest {
         then(drugIndexManager).should().deleteObsoleteIndices();
         then(idempotencyKeyStore).should().release("drug:reindex");
         assertThat(history.getStatus()).isEqualTo(DrugSyncStatus.SUCCESS);
+    }
+
+    @Test
+    @DisplayName("실패 케이스: 이력 저장이 실패하면 락을 해제하고 예외를 전파한다")
+    void startReindex_releases_lock_when_history_save_fails() {
+        given(idempotencyKeyStore.tryAcquire(eq("drug:reindex"), any(Duration.class))).willReturn(true);
+        given(drugSyncHistoryRepository.save(any())).willThrow(new RuntimeException("DB 연결 실패"));
+
+        assertThatThrownBy(() -> drugReindexService.startReindex())
+                .isInstanceOf(RuntimeException.class);
+
+        then(idempotencyKeyStore).should().release("drug:reindex");
+    }
+
+    @Test
+    @DisplayName("실패 케이스: 비동기 작업 제출 실패 시 이력 FAILED, 락 해제, DRUG_REINDEX_FAILED")
+    void startReindex_task_rejected() {
+        DrugSyncHistory history = DrugSyncHistory.start();
+        given(idempotencyKeyStore.tryAcquire(eq("drug:reindex"), any(Duration.class))).willReturn(true);
+        given(drugSyncHistoryRepository.save(any())).willReturn(history);
+        doThrow(new org.springframework.core.task.TaskRejectedException("pool full"))
+                .when(taskExecutor).execute(any());
+
+        assertThatThrownBy(() -> drugReindexService.startReindex())
+                .isInstanceOf(CallCareException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.DRUG_REINDEX_FAILED);
+
+        assertThat(history.getStatus()).isEqualTo(DrugSyncStatus.FAILED);
+        then(idempotencyKeyStore).should().release("drug:reindex");
+    }
+
+    @Test
+    @DisplayName("정상 케이스: alias 스왑 후 구 인덱스 정리가 실패해도 재색인은 SUCCESS")
+    void reindex_success_even_when_cleanup_fails() {
+        DrugSyncHistory history = DrugSyncHistory.start();
+        given(idempotencyKeyStore.tryAcquire(eq("drug:reindex"), any(Duration.class))).willReturn(true);
+        given(drugSyncHistoryRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        given(drugSyncHistoryRepository.findById(any())).willReturn(Optional.of(history));
+        given(drugIndexManager.resolveAliasTargets()).willReturn(Set.of());
+        given(drugIndexManager.createTimestampedIndex()).willReturn("drug_info-new");
+        given(drugInfoRepository.findAll()).willReturn(List.of());
+        doThrow(new RuntimeException("인덱스 목록 조회 실패"))
+                .when(drugIndexManager).deleteObsoleteIndices();
+
+        runTaskInline();
+        drugReindexService.startReindex();
+
+        assertThat(history.getStatus()).isEqualTo(DrugSyncStatus.SUCCESS);
+        then(idempotencyKeyStore).should().release("drug:reindex");
     }
 
     @Test

@@ -28,13 +28,19 @@ import java.util.Set;
  * <p>
  * 동시 실행은 Redis 락({@link IdempotencyKeyStore})으로 차단한다. TTL이 붙어 있어
  * 프로세스가 재색인 도중 종료돼도 락이 자동 만료된다.
+ * <p>
+ * 한계: {@code IdempotencyKeyStore}는 소유 토큰이 없는 단순 SETNX 락이라, 재색인이 TTL을
+ * 초과할 만큼 오래 걸리면(현재 데이터 규모상 수초, TTL은 30분) 락이 만료돼 두 번째 재색인이
+ * 겹칠 수 있다. 데이터가 크게 늘어 fencing 토큰이 필요해지면 별도 분산 락으로 교체한다.
  */
 @Slf4j
 @Service
 public class DrugReindexService {
 
-    private static final String REINDEX_LOCK_KEY = "drug:reindex";
-    private static final Duration LOCK_TTL = Duration.ofMinutes(10);
+    private static final String REINDEX_LOCK_KEY = DrugIndexManager.REINDEX_LOCK_KEY;
+    // 현재 데이터(약 4,700건) 재색인은 수초면 끝난다. 실행 시간 대비 충분한 여유를 두되,
+    // 프로세스가 죽어 release를 못 부른 경우 자동 회수되도록 TTL을 건다.
+    private static final Duration LOCK_TTL = Duration.ofMinutes(30);
 
     private final DrugInfoRepository drugInfoRepository;
     private final DrugInfoConverter drugInfoConverter;
@@ -69,25 +75,52 @@ public class DrugReindexService {
             throw new CallCareException(ErrorCode.DRUG_REINDEX_ALREADY_RUNNING);
         }
 
-        DrugSyncHistory history = drugSyncHistoryRepository.save(DrugSyncHistory.start());
-        log.info("약품 ES 재색인 요청 접수 (historyId: {})", history.getId());
-
+        // 락 획득 이후 비동기 작업 제출까지 성공해야 executeReindex의 finally가 락을 책임진다.
+        // 그 전에 실패하면(이력 저장 실패, 스레드풀 포화 등) 여기서 락을 풀어야 TTL 동안 막히지 않는다.
+        DrugSyncHistory history = null;
         try {
-            taskExecutor.execute(() -> executeReindex(history.getId()));
+            history = drugSyncHistoryRepository.save(DrugSyncHistory.start());
+            Long historyId = history.getId();
+            log.info("약품 ES 재색인 요청 접수 (historyId: {})", historyId);
+            taskExecutor.execute(() -> executeReindex(historyId));
+            return new ReindexStartResult(historyId, DrugSyncStatus.RUNNING);
         } catch (TaskRejectedException e) {
-            history.fail("재색인 비동기 작업 제출에 실패했습니다.");
-            drugSyncHistoryRepository.save(history);
+            failQuietly(history, "재색인 비동기 작업 제출에 실패했습니다.");
             idempotencyKeyStore.release(REINDEX_LOCK_KEY);
             throw new CallCareException(ErrorCode.DRUG_REINDEX_FAILED, "재색인 작업을 시작할 수 없습니다.");
+        } catch (RuntimeException e) {
+            failQuietly(history, e.getMessage());
+            idempotencyKeyStore.release(REINDEX_LOCK_KEY);
+            throw e;
         }
+    }
 
-        return new ReindexStartResult(history.getId(), DrugSyncStatus.RUNNING);
+    // 이력 저장 실패가 원래 예외를 덮지 않도록 조용히 처리한다.
+    private void failQuietly(DrugSyncHistory history, String message) {
+        if (history == null) {
+            return;
+        }
+        try {
+            history.fail(message);
+            drugSyncHistoryRepository.save(history);
+        } catch (Exception e) {
+            log.warn("재색인 이력 실패 처리 저장 실패 (무시): {}", e.getMessage());
+        }
     }
 
     private void executeReindex(Long historyId) {
-        DrugSyncHistory history = drugSyncHistoryRepository.findById(historyId)
-                .orElseThrow(() -> new IllegalStateException("약품 재색인 이력을 찾을 수 없습니다. historyId=" + historyId));
+        try {
+            DrugSyncHistory history = drugSyncHistoryRepository.findById(historyId)
+                    .orElseThrow(() -> new IllegalStateException("약품 재색인 이력을 찾을 수 없습니다. historyId=" + historyId));
+            doReindex(history);
+        } catch (Exception e) {
+            log.error("약품 ES 재색인 처리 중 예외 (historyId: {})", historyId, e);
+        } finally {
+            idempotencyKeyStore.release(REINDEX_LOCK_KEY);
+        }
+    }
 
+    private void doReindex(DrugSyncHistory history) {
         String newIndex = null;
         try {
             Set<String> previousTargets = drugIndexManager.resolveAliasTargets();
@@ -101,19 +134,27 @@ public class DrugReindexService {
             drugIndexManager.bulkIndex(documents, newIndex);
 
             drugIndexManager.switchAlias(newIndex, previousTargets);
-            drugIndexManager.deleteObsoleteIndices();
 
             history.success(documents.size(), newIndex);
             drugSyncHistoryRepository.save(history);
             log.info("약품 ES 재색인 완료 - index: {}, 색인: {}건", newIndex, documents.size());
 
+            // 정리는 alias 스왑이 끝난 뒤의 뒷정리라, 실패해도 재색인 자체는 성공으로 둔다.
+            safeDeleteObsoleteIndices();
+
         } catch (Exception e) {
-            log.error("약품 ES 재색인 실패 - 기존 alias/인덱스는 유지됩니다. (historyId: {})", historyId, e);
+            log.error("약품 ES 재색인 실패 - 기존 alias/인덱스는 유지됩니다. (historyId: {})", history.getId(), e);
             history.fail(e.getMessage());
             drugSyncHistoryRepository.save(history);
             cleanUpFailedIndex(newIndex);
-        } finally {
-            idempotencyKeyStore.release(REINDEX_LOCK_KEY);
+        }
+    }
+
+    private void safeDeleteObsoleteIndices() {
+        try {
+            drugIndexManager.deleteObsoleteIndices();
+        } catch (Exception e) {
+            log.warn("오래된 약품 인덱스 정리 실패 (재색인은 성공, 다음 재색인에서 재시도): {}", e.getMessage());
         }
     }
 
@@ -122,10 +163,10 @@ public class DrugReindexService {
         if (newIndex == null) {
             return;
         }
-        if (drugIndexManager.resolveAliasTargets().contains(newIndex)) {
-            return; // 스왑까지 성공한 뒤 후속 단계에서 실패한 경우 - 인덱스는 유효하므로 남긴다
-        }
         try {
+            if (drugIndexManager.resolveAliasTargets().contains(newIndex)) {
+                return; // 스왑까지 성공한 뒤 후속 단계에서 실패한 경우 - 인덱스는 유효하므로 남긴다
+            }
             drugIndexManager.deleteIndex(newIndex);
         } catch (Exception e) {
             log.warn("실패한 약품 인덱스 정리 실패 (무시): {} - {}", newIndex, e.getMessage());

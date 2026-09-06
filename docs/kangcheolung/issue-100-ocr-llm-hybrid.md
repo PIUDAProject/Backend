@@ -154,13 +154,27 @@ isPrescription = 처방전 신호 있음  AND  약봉투 신호 없음  AND  영
 ## 5. 측정 재현
 
 ```bash
-# 키 없으면 자동 스킵
-OPENAI_API_KEY=sk-... ./gradlew test --tests "*LlmDrugExtractorComparisonTest" -Dgroups=integration
+# 파서 / LLM / 하이브리드 exactR 표 (키 없으면 파서 열만)
+OPENAI_API_KEY=sk-... RUNS=3 python3 scripts/ocr-bench.py
 ```
 
-출력: fixture별 `파서 / LLM / 하이브리드` 정확도 + 라우팅 경로.
+```
+fixture                               라우팅        파서   LLM  하이브리드
+pharmacy_receipt_starred.json         LLM          1.00  1.00     1.00
+table_prescription_synth.json         파서(처방전)   1.00  1.00     1.00
+drug_bag_compact_real.json            LLM          1.00  1.00     1.00
+table_prescription_real.json          파서(처방전)   1.00  0.17     1.00
+pharmacy_receipt_grid_real.json       LLM          0.80  1.00     1.00
+...
+평균                                                0.90  0.68     0.78
+```
 
-단위 테스트(키 불필요):
+- `table_prescription_real` LLM 0.17 → **파서로 라우팅**돼 하이브리드 1.00
+- `pharmacy_receipt_grid_real` 파서 0.80 → **LLM으로 라우팅**돼 1.00
+- `scattered` 하이브리드 0.00 = metric 한계 (정답이 전부 null인데 LLM이 이름 8/8 채움)
+- 파서 평균이 높은 건 정답을 파서 출력 기준으로 라벨링해서. LLM의 "다른 형식"(용량 표기 포함)이 불일치로 잡힘
+
+단위 테스트(키 불필요, 결정론적):
 ```bash
 ./gradlew test --tests "*OcrCommandServiceTest" --tests "*OcrParserRegressionTest"
 ```

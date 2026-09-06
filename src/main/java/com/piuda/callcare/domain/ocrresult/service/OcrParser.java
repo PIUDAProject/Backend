@@ -88,6 +88,17 @@ public class OcrParser {
     private static final List<String> TIMES_KEYWORDS    = List.of("투여횟수", "복용횟수", "횟수");
     private static final List<String> DAYS_KEYWORDS     = List.of("투약일수", "복용일수", "일수");
 
+    /**
+     * 보험코드 줄이 있는 병원 처방전이면 true.
+     * <p>
+     * 이 서식은 저화질이라 헤더가 뭉개져도 좌표 알고리즘(파서)이 숫자 컬럼을 정확히 잡는 반면
+     * LLM은 좌표 텍스트로 표를 못 읽는다(실측). 하이브리드 라우팅에서 "파서로 보낼 것" 신호.
+     * 약봉투·영수증은 여기 걸리지 않으므로 LLM 경로로 간다.
+     */
+    public boolean hasCodedPrescriptionLines(List<NaverOcrApiResponse.Field> fields) {
+        return hasPrescriptionCodeLines(buildRawText(fields));
+    }
+
     public OcrParseResult parse(List<NaverOcrApiResponse.Field> fields, OcrType ocrType) {
         String rawText = buildRawText(fields);
 

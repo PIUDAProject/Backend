@@ -52,6 +52,12 @@ naver:
     invoke-url: ${NAVER_OCR_INVOKE_URL}
     secret-key: ${NAVER_OCR_SECRET_KEY}
 
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  # gpt-4o: 실측상 gpt-4o-mini는 제형 접미사·괄호를 제대로 못 떼고 약을 누락함
+  model: ${OPENAI_MODEL:gpt-4o}
+
 coolsms:
   api-key: ${COOLSMS_API_KEY:}
   api-secret: ${COOLSMS_API_SECRET:}

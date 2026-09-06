@@ -88,6 +88,35 @@ public class OcrParser {
     private static final List<String> TIMES_KEYWORDS    = List.of("투여횟수", "복용횟수", "횟수");
     private static final List<String> DAYS_KEYWORDS     = List.of("투약일수", "복용일수", "일수");
 
+    /**
+     * 병원 처방전(약국에서 주는 약봉투·영수증이 아닌)이면 true.
+     * <p>
+     * 처방전은 표 서식이라 저화질이어도 좌표 알고리즘(파서)이 숫자 컬럼을 정확히 잡는 반면
+     * LLM은 좌표 텍스트로 표를 못 읽는다(실측). 하이브리드 라우팅에서 "파서로 보낼 것" 신호.
+     * <p>
+     * 서식별 고유 문구로 구분한다:
+     * <ul>
+     *   <li>처방전: "처방전" 제목 / "처방 의약품" / "교부번호"·"교부일" / 보험코드 줄</li>
+     *   <li>약봉투: "복약안내" / {@code *약이름} 별표 / "N정씩N회N일분"</li>
+     *   <li>영수증: "약제비" / "계산서" / "본인부담금"</li>
+     * </ul>
+     */
+    public boolean isPrescription(List<NaverOcrApiResponse.Field> fields) {
+        String t = buildRawText(fields);
+
+        boolean prescriptionSignal = hasPrescriptionCodeLines(t)
+            || t.contains("처방전")
+            || t.contains("처방 의약품") || t.contains("처방의약품")
+            || t.contains("교부번호") || t.contains("교부일");
+
+        boolean drugBagSignal = t.contains("복약안내") || t.contains("약봉투")
+            || isPharmacyReceipt(t) || isTextSequentialMulti(t);
+
+        boolean receiptSignal = t.contains("약제비") || t.contains("계산서") || t.contains("본인부담금");
+
+        return prescriptionSignal && !drugBagSignal && !receiptSignal;
+    }
+
     public OcrParseResult parse(List<NaverOcrApiResponse.Field> fields, OcrType ocrType) {
         String rawText = buildRawText(fields);
 

@@ -15,13 +15,25 @@
     {
       "file": "table_prescription_synth.json",
       "ocrType": "PRESCRIPTION",
-      "guard": false,
-      "note": "합성 표 처방전 (좌표 포함) - 이슈 B 대상, 현재 미달",
+      "guard": true,
+      "note": "합성 표 처방전 (좌표 포함, 헤더 분리 재현) - 좌표 파싱으로 5약 전부 추출",
       "expected": [
         { "drugName": "아모잘탄정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
         { "drugName": "크레스토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
         { "drugName": "리피토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 90 },
         { "drugName": "노바스크정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 28 },
+        { "drugName": "아스피린프로텍트정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 }
+      ]
+    },
+    {
+      "file": "drug_bag_compact_synth.json",
+      "ocrType": "DRUG_BAG",
+      "guard": true,
+      "note": "합성 약봉투 압축형 (이름 줄 + '1정씩1회30일분' 반복, 좌표 없음) - 다중 약 분리",
+      "expected": [
+        { "drugName": "아모잘탄정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "크레스토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "리피토정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 30 },
         { "drugName": "아스피린프로텍트정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 }
       ]
     }

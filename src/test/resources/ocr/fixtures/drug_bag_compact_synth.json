@@ -1,0 +1,126 @@
+{
+  "version": "V2",
+  "requestId": "fixture-drugbag-compact",
+  "timestamp": 0,
+  "images": [
+    {
+      "uid": "u1",
+      "name": "image",
+      "inferResult": "SUCCESS",
+      "fields": [
+        {
+          "inferText": "위더스제약",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "복약안내문",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "홍길동 님",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "아모잘탄정",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "1정씩1회30일분",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "혈압약",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "크레스토정10mg",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "1정씩1회30일분",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "고지혈증약",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "리피토정",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "1정씩2회30일분",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "고지혈증약",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "아스피린프로텍트정",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "1정씩1회30일분",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "혈전예방",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        },
+        {
+          "inferText": "식후 30분에 복용하세요",
+          "lineBreak": true,
+          "boundingPoly": {
+            "vertices": []
+          }
+        }
+      ]
+    }
+  ]
+}

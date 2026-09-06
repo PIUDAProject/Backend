@@ -4,21 +4,37 @@
 
 <br/>
 
+**Language & Framework**
+
 ![Java](https://img.shields.io/badge/Java_17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot_3.5.14-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Spring_Security-6DB33F?style=for-the-badge&logo=springsecurity&logoColor=white)
+![Spring Data JPA](https://img.shields.io/badge/Spring_Data_JPA-6DB33F?style=for-the-badge&logo=spring&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-02303A?style=for-the-badge&logo=gradle&logoColor=white)
+
+**Data & Search**
+
 ![MySQL](https://img.shields.io/badge/MySQL_8.4-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis_7.2-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![Elasticsearch](https://img.shields.io/badge/Elasticsearch_8.18-005571?style=for-the-badge&logo=elasticsearch&logoColor=white)
+
+**External API**
+
+![Naver CLOVA OCR](https://img.shields.io/badge/Naver_CLOVA_OCR-03C75A?style=for-the-badge&logo=naver&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI_gpt--4o-412991?style=for-the-badge&logo=openai&logoColor=white)
+![Kakao](https://img.shields.io/badge/Kakao_Login-FFCD00?style=for-the-badge&logo=kakao&logoColor=black)
+![Firebase](https://img.shields.io/badge/Firebase_FCM-DD2C00?style=for-the-badge&logo=firebase&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+
+**Infra & CI/CD**
+
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS_EC2_&_RDS-FF9900?style=for-the-badge&logo=amazonec2&logoColor=white)
+![Nginx](https://img.shields.io/badge/Nginx-009639?style=for-the-badge&logo=nginx&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 
 [![CI/CD](https://github.com/PIUDAProject/Backend/actions/workflows/deploy.yml/badge.svg)](https://github.com/PIUDAProject/Backend/actions/workflows/deploy.yml)
-
-<div align="center">
-
-<img src="src/main/resources/docs/logo.png" alt="callcare logo" width="120"/>
-
-</div>
 
 <br/>
 

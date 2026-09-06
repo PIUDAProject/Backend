@@ -2,9 +2,9 @@ package com.piuda.callcare.domain.ocrresult.service.command;
 
 import com.piuda.callcare.domain.ocrresult.client.NaverOcrClient;
 import com.piuda.callcare.domain.ocrresult.converter.OcrResultConverter;
+import com.piuda.callcare.domain.ocrresult.dto.NaverOcrCallResult;
 import com.piuda.callcare.domain.ocrresult.dto.OcrParseResult;
 import com.piuda.callcare.domain.ocrresult.dto.ParsedOcrData;
-import com.piuda.callcare.domain.ocrresult.dto.response.NaverOcrApiResponse;
 import com.piuda.callcare.domain.ocrresult.dto.response.OcrResultResponse;
 import com.piuda.callcare.domain.ocrresult.entity.OcrResult;
 import com.piuda.callcare.domain.ocrresult.enums.OcrType;
@@ -14,12 +14,11 @@ import com.piuda.callcare.domain.senior.entity.Senior;
 import com.piuda.callcare.domain.senior.repository.SeniorRepository;
 import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
+import com.piuda.callcare.global.util.PiiMasker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.util.List;
 
 @Slf4j
 @Service
@@ -36,17 +35,18 @@ public class OcrCommandService {
         Senior senior = seniorRepository.findByIdAndUser_Id(seniorId, userId)
                 .orElseThrow(() -> new CallCareException(ErrorCode.SENIOR_NOT_FOUND));
 
-        // OCR 호출 → fields(텍스트 + 좌표 블록 목록) 반환
-        List<NaverOcrApiResponse.Field> fields = naverOcrClient.callOcr(image);
+        // OCR 호출 → fields(텍스트 + 좌표 블록 목록) + 응답 원문 반환
+        NaverOcrCallResult ocrCallResult = naverOcrClient.callOcr(image);
 
         // 파싱: rawText 조립 + 약 정보 추출 (표 처방전이면 여러 약)
-        OcrParseResult parseResult = ocrParser.parse(fields, ocrType);
+        OcrParseResult parseResult = ocrParser.parse(ocrCallResult.fields(), ocrType);
 
-        // OcrResult DB 저장: rawText + 첫 번째 약 파싱 결과
+        // OcrResult DB 저장: rawText + 응답 원문 + 첫 번째 약 파싱 결과. 주민번호는 저장 전 마스킹
         OcrResult ocrResult = OcrResult.builder()
                 .senior(senior)
                 .ocrType(ocrType)
-                .rawText(parseResult.rawText())
+                .rawText(PiiMasker.maskResidentNumber(parseResult.rawText()))
+                .rawResponse(PiiMasker.maskResidentNumber(ocrCallResult.rawResponseJson()))
                 .build();
 
         ParsedOcrData first = parseResult.parsedDrugs().isEmpty()

@@ -91,10 +91,27 @@ def process(row_id: int, filename: str):
             if "inferText" in f:
                 f["inferText"] = anonymize(f["inferText"])
         scrub_name_fields(img.get("fields", []))
+
+    # 파서가 쓰는 필드만 남기고 축소 (inferConfidence, type 등 제거) + minify
+    slim = {
+        "version": doc.get("version", "V2"),
+        "images": [{
+            "inferResult": img.get("inferResult", "SUCCESS"),
+            "fields": [{
+                "inferText": f.get("inferText", ""),
+                "lineBreak": bool(f.get("lineBreak", False)),
+                "boundingPoly": {"vertices": [
+                    {"x": v.get("x"), "y": v.get("y")}
+                    for v in (f.get("boundingPoly") or {}).get("vertices", [])
+                ]},
+            } for f in img.get("fields", [])],
+        } for img in doc.get("images", [])],
+    }
     out_path = f"{OUT}/{filename}"
     with open(out_path, "w") as fp:
-        json.dump(doc, fp, ensure_ascii=False, indent=2)
-    n = sum(len(img.get("fields", [])) for img in doc.get("images", []))
+        json.dump(slim, fp, ensure_ascii=False, separators=(",", ":"))
+        fp.write("\n")
+    n = sum(len(img["fields"]) for img in slim["images"])
     print(f"  #{row_id} -> {filename}  ({n} fields)")
 
 

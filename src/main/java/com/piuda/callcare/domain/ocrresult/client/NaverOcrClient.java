@@ -1,18 +1,19 @@
 package com.piuda.callcare.domain.ocrresult.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.piuda.callcare.domain.ocrresult.dto.NaverOcrCallResult;
 import com.piuda.callcare.domain.ocrresult.dto.response.NaverOcrApiResponse;
 import com.piuda.callcare.global.exception.CallCareException;
 import com.piuda.callcare.global.exception.ErrorCode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.util.List;
@@ -21,10 +22,13 @@ import java.util.UUID;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class NaverOcrClient {
 
+    // 표 처방전은 필드(텍스트+좌표)가 많아 응답이 기본 코덱 한도(256KB)를 넘을 수 있어 상향
+    private static final int MAX_IN_MEMORY_SIZE = 10 * 1024 * 1024;
+
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
 
     @Value("${naver.ocr.invoke-url}")
     private String invokeUrl;
@@ -32,7 +36,14 @@ public class NaverOcrClient {
     @Value("${naver.ocr.secret-key}")
     private String secretKey;
 
-    public List<NaverOcrApiResponse.Field> callOcr(MultipartFile image) {
+    public NaverOcrClient(WebClient webClient, ObjectMapper objectMapper) {
+        this.webClient = webClient.mutate()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_SIZE))
+                .build();
+        this.objectMapper = objectMapper;
+    }
+
+    public NaverOcrCallResult callOcr(MultipartFile image) {
         try {
             String filename = Objects.requireNonNullElse(image.getOriginalFilename(), "image.jpg");
             String format = extractFormat(filename);
@@ -45,17 +56,18 @@ public class NaverOcrClient {
                 }
             };
 
-            NaverOcrApiResponse response = webClient.post()
+            String rawResponseJson = webClient.post()
                     .uri(invokeUrl)
                     .header("X-OCR-SECRET", secretKey)
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(BodyInserters.fromMultipartData("message", messageJson)
                             .with("file", imageResource))
                     .retrieve()
-                    .bodyToMono(NaverOcrApiResponse.class)
+                    .bodyToMono(String.class)
                     .block(Duration.ofSeconds(35));
 
-            return extractFields(response);
+            NaverOcrApiResponse response = objectMapper.readValue(rawResponseJson, NaverOcrApiResponse.class);
+            return new NaverOcrCallResult(extractFields(response), rawResponseJson);
 
         } catch (WebClientResponseException e) {
             log.error("Naver OCR API 응답 오류 - status: {}, body: {}", e.getStatusCode(), e.getResponseBodyAsString());

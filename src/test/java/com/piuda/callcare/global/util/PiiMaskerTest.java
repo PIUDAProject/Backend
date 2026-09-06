@@ -60,5 +60,20 @@ class PiiMaskerTest {
     @DisplayName("null은 null을 반환한다")
     void null_처리() {
         assertThat(PiiMasker.maskResidentNumber(null)).isNull();
+        assertThat(PiiMasker.maskContact(null)).isNull();
+    }
+
+    @Test
+    @DisplayName("maskContact는 주민번호 + 전화번호를 마스킹한다 (외부 전송용)")
+    void 연락처_마스킹() {
+        String input = "환자 900101-1234567 / 연락처 010-1234-5678 / 약국 02-6941-1938 / 금액 4,400원";
+
+        String masked = PiiMasker.maskContact(input);
+
+        assertThat(masked)
+                .doesNotContain("900101-1234567")
+                .doesNotContain("010-1234-5678")
+                .doesNotContain("6941-1938")
+                .contains("4,400원");
     }
 }

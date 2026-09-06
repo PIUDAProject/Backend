@@ -3,6 +3,8 @@ package com.piuda.callcare.domain.ocrresult.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.piuda.callcare.domain.ocrresult.dto.response.NaverOcrApiResponse;
+import com.piuda.callcare.global.util.PiiMasker;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -70,6 +72,15 @@ public class OpenAiClient {
         this.objectMapper = objectMapper;
     }
 
+    @PostConstruct
+    void validateBaseUrl() {
+        // API 키·OCR 텍스트가 평문으로 나가지 않도록 https만 허용 (로컬 목 서버는 예외)
+        if (StringUtils.hasText(baseUrl) && !baseUrl.startsWith("https://")
+                && !baseUrl.startsWith("http://localhost") && !baseUrl.startsWith("http://127.0.0.1")) {
+            throw new IllegalStateException("openai.base-url must use https: " + baseUrl);
+        }
+    }
+
     public boolean isEnabled() {
         return StringUtils.hasText(apiKey);
     }
@@ -109,6 +120,7 @@ public class OpenAiClient {
     }
 
     // 각 필드를 "텍스트 @(중심x,중심y)" 한 줄로. y→x 순 정렬해 표 구조를 읽기 쉽게.
+    // 외부(OpenAI)로 나가므로 주민번호·전화번호는 마스킹한다.
     private String toCoordinateText(List<NaverOcrApiResponse.Field> fields) {
         record Line(String text, int x, int y) {}
         return fields.stream()
@@ -117,7 +129,7 @@ public class OpenAiClient {
                     List<NaverOcrApiResponse.Vertex> v = f.boundingPoly() != null ? f.boundingPoly().vertices() : List.of();
                     int cx = v.isEmpty() ? 0 : (int) v.stream().mapToDouble(NaverOcrApiResponse.Vertex::x).average().orElse(0);
                     int cy = v.isEmpty() ? 0 : (int) v.stream().mapToDouble(NaverOcrApiResponse.Vertex::y).average().orElse(0);
-                    return new Line(f.inferText().trim(), cx, cy);
+                    return new Line(PiiMasker.maskContact(f.inferText().trim()), cx, cy);
                 })
                 .sorted((a, b) -> a.y() != b.y() ? Integer.compare(a.y(), b.y()) : Integer.compare(a.x(), b.x()))
                 .map(l -> l.text() + " @(" + l.x() + "," + l.y() + ")")

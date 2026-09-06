@@ -56,11 +56,16 @@ public class LlmDrugExtractor implements DrugExtractor {
         return s.isEmpty() ? null : s;
     }
 
-    // 범위를 벗어나는 값은 환각으로 보고 null 처리
+    // 정수가 아니거나(1.5, "약간" 등) 범위를 벗어나는 값은 환각으로 보고 null 처리
     private Integer boundedInt(JsonNode node, String field, int max) {
         JsonNode v = node.get(field);
-        if (v == null || v.isNull() || !v.canConvertToInt()) return null;
-        int n = v.asInt();
-        return (n >= 1 && n <= max) ? n : null;
+        if (v == null || v.isNull()) return null;
+        Integer n = null;
+        if (v.isIntegralNumber()) {
+            n = v.asInt();
+        } else if (v.isTextual() && v.asText().trim().matches("\\d{1,3}")) {
+            n = Integer.parseInt(v.asText().trim());
+        }
+        return (n != null && n >= 1 && n <= max) ? n : null;
     }
 }

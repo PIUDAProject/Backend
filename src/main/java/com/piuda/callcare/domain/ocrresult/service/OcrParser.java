@@ -21,7 +21,7 @@ public class OcrParser {
         "\\*([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))"
     );
     private static final Pattern NON_STARRED_DRUG_NAME_PATTERN = Pattern.compile(
-        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\d)",
+        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|\\[|_|\\d)",
         Pattern.MULTILINE
     );
     private static final Pattern DRUG_NAME_PATTERN = Pattern.compile(
@@ -52,13 +52,15 @@ public class OcrParser {
         "총\\s*투약\\s*일수\\s*(\\d+)|총\\s*복용\\s*일수\\s*(\\d+)|(\\d+)\\s*일(?:분|치|간)"
     );
 
-    // ⚡ 수정: "계산"/"계산서" 같은 우연히 '산' 접미사를 가진 비약품 토큰 추가
+    // ⚡ 수정: 비약품 토큰 + 제형만 나타내는 단어(약봉투 설명줄 "코팅정" 등)를 약 이름으로 오인하지 않도록
     private static final Set<String> DRUG_NAME_BLACKLIST = Set.of(
         "약제비총액", "본인부담금", "보험자부담금", "총수납금액", "현금영수증", "비급여및전액본인부담금",
-        "계산", "계산서"
+        "계산", "계산서",
+        "코팅정", "필름코팅정", "서방정", "장용정", "당의정", "설하정", "나정",
+        "경질캡슐", "연질캡슐", "경질캅셀"
     );
     private static final Pattern LINE_DRUG_NAME_PATTERN = Pattern.compile(
-        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\d|\\s*$)",
+        "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|\\[|_|\\d|\\s*$)",
         Pattern.MULTILINE
     );
     // ⚡ 수정: 기존 \s* 는 줄바꿈·공백을 삼켜 표 헤더("1회 투약량" + 다음 칸 "1일...")를

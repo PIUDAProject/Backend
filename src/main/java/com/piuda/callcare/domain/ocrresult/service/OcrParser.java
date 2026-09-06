@@ -61,8 +61,11 @@ public class OcrParser {
         "^([가-힣a-zA-Z][가-힣a-zA-Z0-9]*(?:정|캡슐|캅셀|시럽|액|연고|크림|주사|산|패치))(?:\\(|_|\\d|\\s*$)",
         Pattern.MULTILINE
     );
+    // ⚡ 수정: 기존 \s* 는 줄바꿈·공백을 삼켜 표 헤더("1회 투약량" + 다음 칸 "1일...")를
+    // 라벨로 오인함. 약봉투 라벨은 키워드가 붙어("1회투약량1") 나오고 표 헤더는 띄어써서
+    // ("1회 투약량") 나뉘므로, 키워드는 글자를 붙이고 값 숫자 앞에만 공백/탭을 허용한다.
     private static final Pattern LABEL_DOSAGE_PATTERN = Pattern.compile(
-        "1회\\s*투약량\\s*\\d|1일\\s*투여\\s*횟수\\s*\\d|총\\s*투약\\s*일수\\s*\\d"
+        "1회투약량[ \\t]*\\d|1일투여횟수[ \\t]*\\d|총투약일수[ \\t]*\\d"
     );
 
     // 처방일 우선, 없으면 조제일 fallback
@@ -84,13 +87,15 @@ public class OcrParser {
         boolean hasCoordinates = fields.stream()
             .anyMatch(f -> f.boundingPoly() != null && !f.boundingPoly().vertices().isEmpty());
 
+        // 순서 주의: 약봉투(별표/라벨/압축형)를 표 처방전보다 먼저 판정한다.
+        // 라벨 약봉투도 "투약량/횟수/일수" 키워드를 가져 표로 오인될 수 있기 때문.
         List<ParsedOcrData> parsedDrugs;
         if (isPharmacyReceipt(rawText)) {
             parsedDrugs = parseByPharmacyReceipt(rawText);
-        } else if (hasCoordinates && isTablePrescription(rawText)) {
-            parsedDrugs = parseByCoordinates(fields);
         } else if (isTextSequentialMulti(rawText)) {
             parsedDrugs = parseByTextSequential(rawText);
+        } else if (hasCoordinates && isTablePrescription(rawText)) {
+            parsedDrugs = parseByCoordinates(fields);
         } else {
             parsedDrugs = List.of(parseByRegex(rawText));
         }
@@ -198,8 +203,12 @@ public class OcrParser {
             result.add(new ParsedOcrData(names.get(i), dosage, times, days));
         }
 
-        // ⚡ 신규: 전부 못 찾았으면 "이름들 나열 후 숫자만 그룹으로" 형태 시도 (위더스 약봉투)
-        if (result.stream().allMatch(d -> d.dosagePerTime() == null && d.timesPerDay() == null && d.totalDays() == null)) {
+        // ⚡ 수정: "이름들 나열 후 숫자만 그룹으로" 형태 시도 (위더스 약봉투).
+        // 마지막 약 블록이 뒤 숫자를 흡수해 값이 생기면 allMatch가 깨지므로, 절반 이상이 비면 시도한다.
+        long emptyCount = result.stream()
+            .filter(d -> d.dosagePerTime() == null && d.timesPerDay() == null && d.totalDays() == null)
+            .count();
+        if (emptyCount * 2 >= result.size()) {
             List<ParsedOcrData> grouped = parseGroupedTrailingNumbers(rawText, names, starts);
             if (grouped != null) return grouped;
         }
@@ -255,12 +264,16 @@ public class OcrParser {
     // ── 텍스트 순서형 다중 약 감지 + 파싱 ────────────────────────────────────
 
     private boolean isTextSequentialMulti(String rawText) {
-        Matcher m = LABEL_DOSAGE_PATTERN.matcher(rawText);
+        return countMatches(LABEL_DOSAGE_PATTERN, rawText) >= 2
+            // ⚡ 신규: 별표·라벨 없이 "이름 줄 + 1정씩1회5일분"이 반복되는 압축형 약봉투
+            || countMatches(COMPACT_DOSAGE_PATTERN, rawText) >= 2;
+    }
+
+    private int countMatches(Pattern pattern, String text) {
+        Matcher m = pattern.matcher(text);
         int count = 0;
-        while (m.find()) {
-            if (++count >= 2) return true;
-        }
-        return false;
+        while (m.find()) count++;
+        return count;
     }
 
     private List<ParsedOcrData> parseByTextSequential(String rawText) {
@@ -305,7 +318,7 @@ public class OcrParser {
     // ── 표 처방전 감지 ────────────────────────────────────────────────────────
 
     private boolean isTablePrescription(String rawText) {
-        if (LABEL_DOSAGE_PATTERN.matcher(rawText).find()) return false;
+        // 라벨/압축형 약봉투는 parse()에서 isTextSequentialMulti로 먼저 걸러진다.
         int matchCount = 0;
         if (rawText.contains("명칭") || rawText.contains("약품명")) matchCount++;
         if (rawText.contains("투약량") || rawText.contains("복용량")) matchCount++;
@@ -326,34 +339,64 @@ public class OcrParser {
         List<List<FieldWithCenter>> rows = clusterRows(positioned);
         rows.forEach(row -> row.sort(Comparator.comparingDouble(FieldWithCenter::x)));
 
-        ColumnIndex colIdx = detectColumnIndex(rows);
-        if (colIdx.drugNameCol() < 0) {
+        // ⚡ 수정: 헤더 셀의 순서 인덱스 대신 x중심 좌표를 앵커로 쓴다.
+        // 헤더가 "처방 의약품의"+"명칭" 처럼 쪼개지거나 셀이 누락돼도 데이터 셀을 x 최근접 컬럼에 배정한다.
+        List<ColumnAnchor> anchors = new ArrayList<>();
+        int headerRowIdx = -1;
+        for (int i = 0; i < rows.size() && headerRowIdx < 0; i++) {
+            for (FieldWithCenter fw : rows.get(i)) {
+                ColumnKind kind = classifyHeader(fw.field().inferText());
+                if (kind != null) anchors.add(new ColumnAnchor(fw.x(), kind));
+            }
+            boolean hasName = anchors.stream().anyMatch(a -> a.kind() == ColumnKind.NAME);
+            if (hasName && anchors.size() >= 2) headerRowIdx = i;
+            else anchors.clear();
+        }
+        if (headerRowIdx < 0) {
             return List.of(parseByRegex(buildRawText(fields)));
         }
 
         List<ParsedOcrData> result = new ArrayList<>();
-        for (int i = colIdx.headerRowIdx() + 1; i < rows.size(); i++) {
-            List<String> texts = rows.get(i).stream()
-                .map(fw -> fw.field().inferText())
-                .toList();
+        for (int i = headerRowIdx + 1; i < rows.size(); i++) {
+            EnumMap<ColumnKind, String> cells = new EnumMap<>(ColumnKind.class);
+            for (FieldWithCenter fw : rows.get(i)) {
+                ColumnKind kind = nearestColumn(anchors, fw.x());
+                cells.putIfAbsent(kind, fw.field().inferText().trim());
+            }
 
-            String drugName = getCol(texts, colIdx.drugNameCol());
-            if (drugName == null) continue;
-            drugName = refineDrugName(drugName);
+            String rawName = cells.get(ColumnKind.NAME);
+            if (rawName == null) continue;
+            String drugName = refineDrugName(rawName);
             if (drugName == null) continue;
 
-            String dosageRaw = getCol(texts, colIdx.dosageCol());
+            String dosageRaw = cells.get(ColumnKind.DOSAGE);
             String unit = inferDosageUnit(drugName);
             String dosage = dosageRaw != null
                 ? (dosageRaw.matches("\\d+(?:\\.\\d+)?") && unit != null ? dosageRaw + unit : dosageRaw)
                 : null;
-            Integer times = parseIntOrNull(getCol(texts, colIdx.timesCol()));
-            Integer days  = parseIntOrNull(getCol(texts, colIdx.daysCol()));
+            Integer times = parseIntOrNull(cells.get(ColumnKind.TIMES));
+            Integer days  = parseIntOrNull(cells.get(ColumnKind.DAYS));
 
             result.add(new ParsedOcrData(drugName, dosage, times, days));
         }
 
         return result.isEmpty() ? List.of(parseByRegex(buildRawText(fields))) : result;
+    }
+
+    private ColumnKind classifyHeader(String text) {
+        if (DRUG_NAME_KEYWORDS.stream().anyMatch(text::contains)) return ColumnKind.NAME;
+        if (DOSAGE_KEYWORDS.stream().anyMatch(text::contains)) return ColumnKind.DOSAGE;
+        if (TIMES_KEYWORDS.stream().anyMatch(text::contains)) return ColumnKind.TIMES;
+        if (DAYS_KEYWORDS.stream().anyMatch(text::contains)) return ColumnKind.DAYS;
+        return null;
+    }
+
+    private ColumnKind nearestColumn(List<ColumnAnchor> anchors, double x) {
+        ColumnAnchor best = anchors.get(0);
+        for (ColumnAnchor a : anchors) {
+            if (Math.abs(a.x() - x) < Math.abs(best.x() - x)) best = a;
+        }
+        return best.kind();
     }
 
     private List<List<FieldWithCenter>> clusterRows(List<FieldWithCenter> sorted) {
@@ -366,31 +409,6 @@ public class OcrParser {
             }
         }
         return rows;
-    }
-
-    private ColumnIndex detectColumnIndex(List<List<FieldWithCenter>> rows) {
-        for (int i = 0; i < rows.size(); i++) {
-            List<String> texts = rows.get(i).stream()
-                .map(fw -> fw.field().inferText())
-                .toList();
-            String rowText = String.join("", texts);
-
-            boolean isHeader = DRUG_NAME_KEYWORDS.stream().anyMatch(rowText::contains)
-                || DOSAGE_KEYWORDS.stream().anyMatch(rowText::contains);
-
-            if (isHeader) {
-                int drugCol = -1, dosageCol = -1, timesCol = -1, daysCol = -1;
-                for (int j = 0; j < texts.size(); j++) {
-                    String t = texts.get(j);
-                    if (DRUG_NAME_KEYWORDS.stream().anyMatch(t::contains)) drugCol  = j;
-                    else if (DOSAGE_KEYWORDS.stream().anyMatch(t::contains)) dosageCol = j;
-                    else if (TIMES_KEYWORDS.stream().anyMatch(t::contains)) timesCol  = j;
-                    else if (DAYS_KEYWORDS.stream().anyMatch(t::contains)) daysCol   = j;
-                }
-                return new ColumnIndex(i, drugCol, dosageCol, timesCol, daysCol);
-            }
-        }
-        return new ColumnIndex(-1, -1, -1, -1, -1);
     }
 
     // ⚡ 수정: 좌표 기반 파싱에도 블랙리스트 적용 (첫 매치가 블랙리스트면 다음 매치 탐색)
@@ -510,10 +528,6 @@ public class OcrParser {
         return last.get(last.size() - 1).y();
     }
 
-    private String getCol(List<String> texts, int col) {
-        return (col >= 0 && col < texts.size()) ? texts.get(col).trim() : null;
-    }
-
     private Integer parseIntOrNull(String s) {
         if (s == null) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
@@ -521,5 +535,7 @@ public class OcrParser {
 
     private record FieldWithCenter(NaverOcrApiResponse.Field field, double x, double y) {}
 
-    private record ColumnIndex(int headerRowIdx, int drugNameCol, int dosageCol, int timesCol, int daysCol) {}
+    private enum ColumnKind { NAME, DOSAGE, TIMES, DAYS }
+
+    private record ColumnAnchor(double x, ColumnKind kind) {}
 }

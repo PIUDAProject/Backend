@@ -13,9 +13,17 @@ import json
 import re
 import subprocess
 
-# --- DB 접속 (application-local.yml 값으로 수정) ---
+# --- DB 접속 (.env의 LOCAL_DB_* 값 사용. 비번은 MYSQL_PWD 환경변수로 전달) ---
+import os
 DB_NAME = "callcare"
 MYSQL = ["mysql", "-uroot", DB_NAME, "-N", "--raw", "-e"]
+_ENV = dict(os.environ)
+try:
+    for line in open(f"{os.path.dirname(__file__)}/../.env"):
+        if line.startswith("LOCAL_DB_PASSWORD="):
+            _ENV["MYSQL_PWD"] = line.split("=", 1)[1].strip()
+except OSError:
+    pass
 
 REPO = "/Users/kangcheolung/cotato/callcare"
 OUT = f"{REPO}/src/test/resources/ocr/fixtures"
@@ -30,8 +38,10 @@ MAPPING = {
 # inferText 값에 적용할 치환 (개인정보 → 더미). 약 이름/용법은 건드리지 않음.
 def anonymize(text: str) -> str:
     t = text
-    # 주민번호(6-7 / 6-1 부분마스킹형)
+    # 주민번호(6-7 / 6-1 부분마스킹형), 만나이/생년
     t = re.sub(r"\d{6}\s*-\s*[1-8](\d{6})?", "******-*******", t)
+    t = re.sub(r"\d{4}년생", "0000년생", t)
+    t = re.sub(r"만\s*\d+세", "만 00세", t)
     # 전화번호
     t = re.sub(r"0\d{1,2}-?\d{3,4}-?\d{4}", "000-0000-0000", t)
     t = re.sub(r"\b01[016789]\d{7,8}\b", "01000000000", t)
@@ -47,17 +57,29 @@ def anonymize(text: str) -> str:
     # 의료기관/약국명
     for org, repl in [
         ("향촌 사랑 내과", "행복 내과"), ("향촌메디컬", "행복메디컬"),
-        ("향 촌 우리약국", "행복 약국"), ("향촌", "행복"),
+        ("향 촌 우리약국", "행복 약국"), ("향 촌", "행복"), ("향촌", "행복"),
+        ("우리약국", "행복약국"),
         ("터울병원", "행복병원"), ("필독약국", "행복약국"), ("필독", "행복"),
     ]:
         t = t.replace(org, repl)
     return t
 
 
+def scrub_name_fields(fields):
+    """'성명' 등 이름 라벨 뒤에 오는 짧은 한글 필드(약사/의사 이름 조각)를 마스킹한다."""
+    LABELS = {"성명", "성 명", "환자 성명", "환 자 성 명", "조제한", "조제약사"}
+    for i, f in enumerate(fields):
+        if f.get("inferText", "").strip() in LABELS:
+            for j in range(i + 1, min(i + 4, len(fields))):
+                nxt = fields[j].get("inferText", "").strip()
+                if 1 <= len(nxt) <= 3 and re.fullmatch(r"[가-힣]+", nxt):
+                    fields[j]["inferText"] = "○" * len(nxt)
+
+
 def process(row_id: int, filename: str):
     raw = subprocess.run(
         MYSQL + [f"SELECT raw_response FROM ocr_result WHERE ocr_result_id={row_id}"],
-        capture_output=True, text=True, check=True,
+        capture_output=True, text=True, check=True, env=_ENV,
     ).stdout.strip()
     if not raw:
         print(f"  #{row_id}: raw_response 비어있음 — 스킵")
@@ -67,6 +89,7 @@ def process(row_id: int, filename: str):
         for f in img.get("fields", []):
             if "inferText" in f:
                 f["inferText"] = anonymize(f["inferText"])
+        scrub_name_fields(img.get("fields", []))
     out_path = f"{OUT}/{filename}"
     with open(out_path, "w") as fp:
         json.dump(doc, fp, ensure_ascii=False, indent=2)

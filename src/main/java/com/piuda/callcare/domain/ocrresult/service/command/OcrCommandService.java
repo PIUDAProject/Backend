@@ -46,11 +46,11 @@ public class OcrCommandService {
         OcrParseResult parseResult = ocrParser.parse(ocrCallResult.fields(), ocrType);
 
         // 하이브리드 라우팅 (실측 기반):
-        //  - 보험코드 줄 처방전: 저화질에서 파서(좌표)가 LLM보다 정확 → 파서 결과 사용
-        //  - 약봉투/영수증/그 외: LLM 추출, 실패 시 파서 폴백
+        //  - 병원 처방전: 표 서식이라 파서(좌표)가 LLM보다 정확 → 파서 결과 사용
+        //  - 약봉투/영수증/그 외: LLM 추출 (이름 정규화·서식 무관), 실패 시 파서 폴백
         List<ParsedOcrData> parsedDrugs;
         String method;
-        if (ocrParser.hasCodedPrescriptionLines(ocrCallResult.fields()) && !parseResult.parsedDrugs().isEmpty()) {
+        if (ocrParser.isPrescription(ocrCallResult.fields()) && !parseResult.parsedDrugs().isEmpty()) {
             parsedDrugs = parseResult.parsedDrugs();
             method = "파서(처방전)";
         } else {

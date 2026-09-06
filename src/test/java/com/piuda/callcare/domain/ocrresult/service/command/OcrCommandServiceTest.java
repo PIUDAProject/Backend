@@ -58,11 +58,11 @@ class OcrCommandServiceTest {
     }
 
     @Test
-    @DisplayName("보험코드 줄 처방전이면 LLM을 부르지 않고 파서 결과를 쓴다")
+    @DisplayName("병원 처방전이면 LLM을 부르지 않고 파서 결과를 쓴다")
     void 처방전은_파서_사용() {
         // Given
         commonStubs();
-        given(ocrParser.hasCodedPrescriptionLines(any())).willReturn(true);
+        given(ocrParser.isPrescription(any())).willReturn(true);
 
         // When
         ocrCommandService.processOcr(1L, 1L, image(), OcrType.PRESCRIPTION);
@@ -77,7 +77,7 @@ class OcrCommandServiceTest {
     void 약봉투는_LLM_사용() {
         // Given
         commonStubs();
-        given(ocrParser.hasCodedPrescriptionLines(any())).willReturn(false);
+        given(ocrParser.isPrescription(any())).willReturn(false);
         given(drugExtractor.extract(any())).willReturn(List.of(LLM_DRUG));
 
         // When
@@ -92,7 +92,7 @@ class OcrCommandServiceTest {
     void LLM_실패시_파서_폴백() {
         // Given
         commonStubs();
-        given(ocrParser.hasCodedPrescriptionLines(any())).willReturn(false);
+        given(ocrParser.isPrescription(any())).willReturn(false);
         given(drugExtractor.extract(any())).willReturn(List.of());
 
         // When

@@ -41,7 +41,7 @@ class LlmDrugExtractorComparisonTest {
                     List<ParsedOcrData> byParser = parser.parse(fields, type).parsedDrugs();
                     List<ParsedOcrData> byLlm = llm.extract(fields);
 
-                    boolean useParser = parser.hasCodedPrescriptionLines(fields) && !byParser.isEmpty();
+                    boolean useParser = parser.isPrescription(fields) && !byParser.isEmpty();
                     List<ParsedOcrData> hybrid = useParser ? byParser
                             : (byLlm.isEmpty() ? byParser : byLlm);
                     String route = useParser ? "파서(처방전)" : (byLlm.isEmpty() ? "파서(폴백)" : "LLM");

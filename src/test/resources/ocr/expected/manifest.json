@@ -67,6 +67,18 @@
       ]
     },
     {
+      "file": "table_prescription_real.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": true,
+      "note": "실제 병원 표 처방전 (저화질, 헤더 뭉개짐, 보험코드 줄 4약) - 코드+x좌표 파싱",
+      "expected": [
+        { "drugName": "지스로먹스장", "dosagePerTime": "2", "timesPerDay": 1, "totalDays": 3 },
+        { "drugName": "에리우스점", "dosagePerTime": "1", "timesPerDay": 1, "totalDays": 3 },
+        { "drugName": "써스벤이열시방정", "dosagePerTime": "1정", "timesPerDay": 3, "totalDays": 3 },
+        { "drugName": "폰탈한셀", "dosagePerTime": "1", "timesPerDay": 3, "totalDays": 3 }
+      ]
+    },
+    {
       "file": "pharmacy_receipt_grid_real.json",
       "ocrType": "PRESCRIPTION",
       "guard": false,

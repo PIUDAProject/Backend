@@ -78,6 +78,11 @@ public class OcrParser {
         "(?:조제일|조제일자)\\s*[:\\-]?\\s*(\\d{4})\\s*[.년\\-]\\s*(\\d{1,2})\\s*[.월\\-]?\\s*(\\d{1,2})"
     );
 
+    // 병원 처방전 약 줄: "보험코드(8~10자리) + 제품명 [+ (내복)]"
+    private static final Pattern PRESCRIPTION_CODE_LINE = Pattern.compile("\\d{8,10}\\s+[가-힣A-Za-z]");
+    private static final Pattern DRUG_CODE = Pattern.compile("^\\d{8,10}$");
+    private static final Pattern SINGLE_NUMBER = Pattern.compile("^[0-9lITｌ]$");
+
     private static final List<String> DRUG_NAME_KEYWORDS = List.of("명칭", "약품명", "의약품");
     private static final List<String> DOSAGE_KEYWORDS   = List.of("투약량", "복용량", "1회");
     private static final List<String> TIMES_KEYWORDS    = List.of("투여횟수", "복용횟수", "횟수");
@@ -96,6 +101,9 @@ public class OcrParser {
             parsedDrugs = parseByPharmacyReceipt(rawText);
         } else if (isTextSequentialMulti(rawText)) {
             parsedDrugs = parseByTextSequential(rawText);
+        } else if (hasCoordinates && hasPrescriptionCodeLines(rawText)) {
+            // 보험코드 줄이 있는 병원 처방전 — 헤더가 뭉개져도 코드+x좌표로 파싱
+            parsedDrugs = parseByPrescriptionCode(fields);
         } else if (hasCoordinates && isTablePrescription(rawText)) {
             parsedDrugs = parseByCoordinates(fields);
         } else {
@@ -315,6 +323,90 @@ public class OcrParser {
         }
 
         return result.isEmpty() ? List.of(parseByRegex(rawText)) : dedupeByName(result);
+    }
+
+    // ── 보험코드 줄 기반 처방전 파싱 ─────────────────────────────────────────
+    // 헤더가 뭉개진 저화질 처방전도, "9자리 코드 + 이름" 줄과 같은 행의 숫자를 x순으로 잡는다.
+
+    private boolean hasPrescriptionCodeLines(String rawText) {
+        return countMatches(PRESCRIPTION_CODE_LINE, rawText) >= 2;
+    }
+
+    private List<ParsedOcrData> parseByPrescriptionCode(List<NaverOcrApiResponse.Field> fields) {
+        List<FieldWithCenter> positioned = fields.stream()
+            .filter(f -> f.boundingPoly() != null && !f.boundingPoly().vertices().isEmpty())
+            .map(f -> new FieldWithCenter(f, centerX(f), centerY(f)))
+            .toList();
+
+        List<FieldWithCenter> codes = positioned.stream()
+            .filter(f -> DRUG_CODE.matcher(f.field().inferText().trim()).matches())
+            .sorted(Comparator.comparingDouble(FieldWithCenter::y))
+            .toList();
+        if (codes.size() < 2) {
+            return List.of(parseByRegex(buildRawText(fields)));
+        }
+
+        // 각 필드를 y가 가장 가까운 코드 행에 배정하되, 행 간격의 절반 이내만 인정한다
+        double rowGap = codes.size() > 1 ? (codes.get(codes.size() - 1).y() - codes.get(0).y()) / (codes.size() - 1) : 15;
+        double yTol = Math.max(6, rowGap * 0.6);
+
+        List<ParsedOcrData> result = new ArrayList<>();
+        for (int r = 0; r < codes.size(); r++) {
+            FieldWithCenter code = codes.get(r);
+            int idx = r;
+            List<FieldWithCenter> row = positioned.stream()
+                .filter(f -> Math.abs(f.y() - code.y()) <= yTol && nearestCodeIndex(codes, f.y()) == idx)
+                .sorted(Comparator.comparingDouble(FieldWithCenter::x))
+                .toList();
+
+            // 이름: 코드 오른쪽의 첫 한글 텍스트 (숫자·식후 등 제외)
+            String name = row.stream()
+                .filter(f -> f.x() > code.x())
+                .map(f -> refineCodeLineName(f.field().inferText()))
+                .filter(Objects::nonNull)
+                .findFirst().orElse(null);
+            if (name == null) continue;
+
+            // 숫자: 코드/이름 오른쪽의 한 자리 숫자들을 x순으로 (투약량·횟수·일수 = 앞 3개)
+            List<String> nums = row.stream()
+                .filter(f -> f.x() > code.x())
+                .filter(f -> SINGLE_NUMBER.matcher(f.field().inferText().trim()).matches())
+                .map(f -> normalizeDigit(f.field().inferText().trim()))
+                .toList();
+
+            String dosage = nums.isEmpty() ? null : nums.get(0);
+            String unit = inferDosageUnit(name);
+            if (dosage != null && dosage.matches("\\d+") && unit != null) dosage = dosage + unit;
+            Integer times = nums.size() > 1 ? parseIntOrNull(nums.get(1)) : null;
+            Integer days  = nums.size() > 2 ? parseIntOrNull(nums.get(2)) : null;
+
+            result.add(new ParsedOcrData(name, dosage, times, days));
+        }
+        return result.isEmpty() ? List.of(parseByRegex(buildRawText(fields))) : dedupeByName(result);
+    }
+
+    private static final Pattern USAGE_WORD = Pattern.compile("^(식(후|전|주|간|추)|취침전?|아침|점심|저녁|공복|경구|내복|외용)$");
+
+    // "지스로먹스장250mg(내복)" → "지스로먹스장" (괄호·용량 표기 제거, 용법 단어는 제외)
+    private String refineCodeLineName(String raw) {
+        String s = raw.replaceAll("\\(.*?\\)", "")
+            .replaceAll("\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|밀리그람|밀리그램|그람|밀리리터|mcg|IU)$", "")
+            .trim();
+        if (s.length() < 2 || !s.matches(".*[가-힣].*")) return null;
+        if (USAGE_WORD.matcher(s).matches()) return null;
+        return s;
+    }
+
+    private String normalizeDigit(String s) {
+        return s.matches("[lITｌ]") ? "1" : s;
+    }
+
+    private int nearestCodeIndex(List<FieldWithCenter> codes, double y) {
+        int best = 0;
+        for (int i = 1; i < codes.size(); i++) {
+            if (Math.abs(codes.get(i).y() - y) < Math.abs(codes.get(best).y() - y)) best = i;
+        }
+        return best;
     }
 
     // ── 표 처방전 감지 ────────────────────────────────────────────────────────

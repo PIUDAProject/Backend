@@ -33,6 +33,7 @@ MAPPING = {
     51: "pharmacy_receipt_scattered_real.json",
     52: "drug_bag_starred_real.json",
     53: "drug_bag_compact_real.json",
+    54: "table_prescription_real.json",
 }
 
 # inferText 값에 적용할 치환 (개인정보 → 더미). 약 이름/용법은 건드리지 않음.

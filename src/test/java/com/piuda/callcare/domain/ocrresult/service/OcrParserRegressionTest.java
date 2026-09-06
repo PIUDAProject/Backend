@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * 저장된 실제/합성 OCR 응답을 {@link OcrParser}에 돌려 회귀를 잡는다.
@@ -34,6 +35,8 @@ class OcrParserRegressionTest {
     Stream<DynamicTest> 회귀_리포트() {
         List<FixtureCase> cases = OcrFixtureLoader.loadManifest().fixtures();
         return cases.stream().map(fc -> DynamicTest.dynamicTest(fc.file(), () -> {
+            // 실사진 fixture는 팀이 마스킹 후 추가 — 없으면 스킵(가드는 유지)
+            assumeTrue(OcrFixtureLoader.exists(fc.file()), "fixture 파일 없음: " + fc.file());
             List<NaverOcrApiResponse.Field> fields = OcrFixtureLoader.loadFields(fc.file());
             OcrParseResult result = ocrParser.parse(fields, OcrType.valueOf(fc.ocrType()));
             List<ParsedOcrData> actual = result.parsedDrugs();

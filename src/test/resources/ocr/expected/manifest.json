@@ -15,14 +15,96 @@
     {
       "file": "table_prescription_synth.json",
       "ocrType": "PRESCRIPTION",
-      "guard": false,
-      "note": "합성 표 처방전 (좌표 포함) - 이슈 B 대상, 현재 미달",
+      "guard": true,
+      "note": "합성 표 처방전 (좌표 포함, 헤더 분리 재현) - 좌표 파싱으로 5약 전부 추출",
       "expected": [
         { "drugName": "아모잘탄정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
         { "drugName": "크레스토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
         { "drugName": "리피토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 90 },
         { "drugName": "노바스크정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 28 },
         { "drugName": "아스피린프로텍트정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 }
+      ]
+    },
+    {
+      "file": "drug_bag_compact_synth.json",
+      "ocrType": "DRUG_BAG",
+      "guard": true,
+      "note": "합성 약봉투 압축형 (이름 줄 + '1정씩1회30일분' 반복, 좌표 없음) - 다중 약 분리",
+      "expected": [
+        { "drugName": "아모잘탄정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "크레스토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "리피토정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 30 },
+        { "drugName": "아스피린프로텍트정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 }
+      ]
+    },
+    {
+      "file": "drug_bag_starred_real.json",
+      "ocrType": "DRUG_BAG",
+      "guard": true,
+      "note": "실제 약봉투 (별표형) - 파일 없으면 스킵. 팀이 마스킹 후 추가",
+      "expected": [
+        { "drugName": "타이레놀이알서방정", "dosagePerTime": "1정", "timesPerDay": 3, "totalDays": 3 },
+        { "drugName": "뮤테란캅셀", "dosagePerTime": "1캡슐", "timesPerDay": 3, "totalDays": 3 },
+        { "drugName": "종근당아목시실린캡슐", "dosagePerTime": "1캡슐", "timesPerDay": 3, "totalDays": 3 },
+        { "drugName": "코푸시럽", "dosagePerTime": "1ml", "timesPerDay": 3, "totalDays": 3 }
+      ]
+    },
+    {
+      "file": "drug_bag_compact_real.json",
+      "ocrType": "DRUG_BAG",
+      "guard": true,
+      "note": "실제 약봉투 (압축형, 위더스제약 9약) - 파일 없으면 스킵. 팀이 마스킹 후 추가",
+      "expected": [
+        { "drugName": "위더스레보를록사신정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 5 },
+        { "drugName": "클래민정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "프레나정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "데파스정", "dosagePerTime": "0.5정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "덱시네정", "dosagePerTime": "1정", "timesPerDay": 3, "totalDays": 5 },
+        { "drugName": "설포스캡슐", "dosagePerTime": "1캡슐", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "코대원에스시럽", "dosagePerTime": "1포", "timesPerDay": 3, "totalDays": 5 },
+        { "drugName": "엘도신캡슐", "dosagePerTime": "1캡슐", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "베포캄정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 }
+      ]
+    },
+    {
+      "file": "table_prescription_real.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": true,
+      "note": "실제 병원 표 처방전 (저화질, 헤더 뭉개짐, 보험코드 줄 4약) - 코드+x좌표 파싱",
+      "expected": [
+        { "drugName": "지스로먹스장", "dosagePerTime": "2", "timesPerDay": 1, "totalDays": 3 },
+        { "drugName": "에리우스점", "dosagePerTime": "1", "timesPerDay": 1, "totalDays": 3 },
+        { "drugName": "써스벤이열시방정", "dosagePerTime": "1정", "timesPerDay": 3, "totalDays": 3 },
+        { "drugName": "폰탈한셀", "dosagePerTime": "1", "timesPerDay": 3, "totalDays": 3 }
+      ]
+    },
+    {
+      "file": "pharmacy_receipt_grid_real.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": false,
+      "note": "실제 약제비 영수증 (상세+요약표 2섹션, 중복 발생) - 리포트 전용. 팀이 마스킹 후 추가",
+      "expected": [
+        { "drugName": "뉴부틴서방정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 7 },
+        { "drugName": "액시티딘캅셀", "dosagePerTime": "1캡슐", "timesPerDay": 2, "totalDays": 7 },
+        { "drugName": "티로파정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 7 },
+        { "drugName": "비오플250캅셀", "dosagePerTime": "1캡슐", "timesPerDay": 2, "totalDays": 7 },
+        { "drugName": "환인그란닥신정", "dosagePerTime": "0.5정", "timesPerDay": 2, "totalDays": 7 }
+      ]
+    },
+    {
+      "file": "pharmacy_receipt_scattered_real.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": false,
+      "note": "실제 약제비 영수증 (좌표만 표처럼 보임, 압축패턴 없음 - 최난도) - 리포트 전용. 팀이 마스킹 후 추가",
+      "expected": [
+        { "drugName": "알마겔정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "슈가메트서방정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "듀비메트서방정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "경동아스피린장용정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "리피토정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "애니코프캡슐", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "다이크로짇정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null },
+        { "drugName": "소론도정", "dosagePerTime": null, "timesPerDay": null, "totalDays": null }
       ]
     }
   ]

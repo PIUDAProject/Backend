@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" font-family="'Helvetica Neue',Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5;rx:10;}
+      .grp{fill:#f8fafc;stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 4;rx:14;}
+      .t{fill:#0f172a;font-size:14px;font-weight:600;}
+      .s{fill:#475569;font-size:11.5px;}
+      .lbl{fill:#64748b;font-size:11px;}
+      .grpt{fill:#334155;font-size:12.5px;font-weight:700;letter-spacing:.4px;}
+      .flow{stroke:#94a3b8;stroke-width:1.6;fill:none;marker-end:url(#arrow);}
+      .accent{fill:#3b82f6;}
+    </style>
+  </defs>
+
+  <rect width="960" height="700" fill="#ffffff"/>
+  <text x="32" y="42" fill="#0f172a" font-size="20" font-weight="700">callcare — System Architecture</text>
+  <text x="32" y="63" class="s">시니어 복약 관리 · 전화 알림 서비스 백엔드</text>
+
+  <!-- Client -->
+  <rect class="box" x="380" y="90" width="200" height="58" rx="10"/>
+  <text x="480" y="115" text-anchor="middle" class="t">Mobile App (Client)</text>
+  <text x="480" y="134" text-anchor="middle" class="s">보호자 · 시니어</text>
+
+  <!-- AWS EC2 group -->
+  <rect class="grp" x="32" y="190" width="620" height="330" rx="14"/>
+  <text x="52" y="214" class="grpt">AWS EC2  ·  Docker Compose  ·  Nginx (HTTPS)</text>
+
+  <!-- Nginx -->
+  <rect class="box" x="60" y="232" width="180" height="60" rx="10"/>
+  <text x="150" y="257" text-anchor="middle" class="t">Nginx</text>
+  <text x="150" y="275" text-anchor="middle" class="s">리버스 프록시 · TLS</text>
+
+  <!-- Spring Boot Blue/Green -->
+  <rect class="box" x="60" y="330" width="180" height="90" rx="10"/>
+  <text x="150" y="355" text-anchor="middle" class="t">Spring Boot</text>
+  <text x="150" y="374" text-anchor="middle" class="s">app-blue :8080</text>
+  <text x="150" y="391" text-anchor="middle" class="s">app-green :8081</text>
+  <text x="150" y="408" text-anchor="middle" class="lbl">Blue/Green 무중단 배포</text>
+
+  <!-- Schedulers -->
+  <rect class="box" x="60" y="450" width="180" height="56" rx="10"/>
+  <text x="150" y="472" text-anchor="middle" class="t">Schedulers</text>
+  <text x="150" y="490" text-anchor="middle" class="s">전화 알림 · 푸시 · 병원 동기화</text>
+
+  <!-- Redis -->
+  <rect class="box" x="300" y="250" width="150" height="76" rx="10"/>
+  <text x="375" y="274" text-anchor="middle" class="t">Redis</text>
+  <text x="375" y="292" text-anchor="middle" class="s">Refresh Token</text>
+  <text x="375" y="309" text-anchor="middle" class="s">지연 큐 (재시도·문자)</text>
+
+  <!-- Elasticsearch -->
+  <rect class="box" x="300" y="350" width="150" height="76" rx="10"/>
+  <text x="375" y="374" text-anchor="middle" class="t">Elasticsearch</text>
+  <text x="375" y="392" text-anchor="middle" class="s">drug_info 인덱스</text>
+  <text x="375" y="409" text-anchor="middle" class="s">hospital 인덱스</text>
+
+  <!-- App internal note -->
+  <rect class="box" x="480" y="300" width="150" height="120" rx="10"/>
+  <text x="555" y="323" text-anchor="middle" class="t">도메인</text>
+  <text x="555" y="344" text-anchor="middle" class="s">auth · senior</text>
+  <text x="555" y="361" text-anchor="middle" class="s">druginfo · hospital</text>
+  <text x="555" y="378" text-anchor="middle" class="s">ocrresult · medication</text>
+  <text x="555" y="395" text-anchor="middle" class="s">drugconflict · calllog</text>
+  <text x="555" y="412" text-anchor="middle" class="s">home · notification</text>
+
+  <!-- AWS RDS -->
+  <rect class="grp" x="700" y="190" width="228" height="120" rx="14"/>
+  <text x="720" y="214" class="grpt">AWS RDS</text>
+  <rect class="box" x="726" y="228" width="176" height="66" rx="10"/>
+  <text x="814" y="253" text-anchor="middle" class="t">MySQL</text>
+  <text x="814" y="272" text-anchor="middle" class="s">운영 데이터베이스</text>
+
+  <!-- External services -->
+  <rect class="grp" x="700" y="340" width="228" height="300" rx="14"/>
+  <text x="720" y="364" class="grpt">External APIs</text>
+
+  <rect class="box" x="726" y="378" width="176" height="40" rx="9"/>
+  <text x="814" y="403" text-anchor="middle" class="s">식약처 공공데이터 API</text>
+  <rect class="box" x="726" y="426" width="176" height="40" rx="9"/>
+  <text x="814" y="451" text-anchor="middle" class="s">Naver CLOVA OCR</text>
+  <rect class="box" x="726" y="474" width="176" height="40" rx="9"/>
+  <text x="814" y="499" text-anchor="middle" class="s">OpenAI (처방전 파싱)</text>
+  <rect class="box" x="726" y="522" width="176" height="40" rx="9"/>
+  <text x="814" y="547" text-anchor="middle" class="s">Kakao · Naver OAuth</text>
+  <rect class="box" x="726" y="570" width="176" height="40" rx="9"/>
+  <text x="814" y="595" text-anchor="middle" class="s">CoolSMS · Firebase FCM</text>
+
+  <!-- flows -->
+  <path class="flow" d="M480,148 V190"/>
+  <text x="490" y="176" class="lbl">HTTPS</text>
+  <path class="flow" d="M150,292 V330"/>
+  <path class="flow" d="M240,368 C270,368 275,288 300,288"/>
+  <path class="flow" d="M240,380 C270,380 280,388 300,388"/>
+  <path class="flow" d="M450,388 H480"/>
+  <path class="flow" d="M630,340 C670,300 690,275 726,264"/>
+  <text x="650" y="300" class="lbl">JPA</text>
+  <path class="flow" d="M630,400 C675,420 695,442 726,446"/>
+  <path class="flow" d="M580,120 C700,120 814,150 814,228"/>
+  <text x="612" y="112" class="lbl">OAuth 로그인</text>
+
+  <!-- CI/CD strip -->
+  <rect class="grp" x="32" y="560" width="620" height="110" rx="14"/>
+  <text x="52" y="584" class="grpt">CI / CD</text>
+  <rect class="box" x="52" y="596" width="120" height="52" rx="9"/>
+  <text x="112" y="620" text-anchor="middle" class="s">GitHub</text>
+  <text x="112" y="636" text-anchor="middle" class="lbl">push develop</text>
+  <rect class="box" x="212" y="596" width="130" height="52" rx="9"/>
+  <text x="277" y="620" text-anchor="middle" class="s">GitHub Actions</text>
+  <text x="277" y="636" text-anchor="middle" class="lbl">gradle build</text>
+  <rect class="box" x="382" y="596" width="120" height="52" rx="9"/>
+  <text x="442" y="626" text-anchor="middle" class="s">Docker Hub</text>
+  <rect class="box" x="542" y="596" width="90" height="52" rx="9"/>
+  <text x="587" y="620" text-anchor="middle" class="s">EC2</text>
+  <text x="587" y="636" text-anchor="middle" class="lbl">deploy.sh</text>
+  <path class="flow" d="M172,622 H212"/>
+  <path class="flow" d="M342,622 H382"/>
+  <path class="flow" d="M502,622 H542"/>
+</svg>

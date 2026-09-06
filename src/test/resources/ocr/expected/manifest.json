@@ -1,0 +1,29 @@
+{
+  "fixtures": [
+    {
+      "file": "pharmacy_receipt_yuseong.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": true,
+      "note": "유성온누리약국 영수증 (별표형, 좌표 없음) - 현재 정상 동작, 회귀 가드",
+      "expected": [
+        { "drugName": "아클펜정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "아트놀셋세미정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "모사피트정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
+        { "drugName": "에페신정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 }
+      ]
+    },
+    {
+      "file": "table_prescription_synth.json",
+      "ocrType": "PRESCRIPTION",
+      "guard": false,
+      "note": "합성 표 처방전 (좌표 포함) - 이슈 B 대상, 현재 미달",
+      "expected": [
+        { "drugName": "아모잘탄정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "크레스토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 },
+        { "drugName": "리피토정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 90 },
+        { "drugName": "노바스크정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 28 },
+        { "drugName": "아스피린프로텍트정", "dosagePerTime": "1정", "timesPerDay": 1, "totalDays": 30 }
+      ]
+    }
+  ]
+}

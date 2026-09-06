@@ -1,10 +1,10 @@
 {
   "fixtures": [
     {
-      "file": "pharmacy_receipt_yuseong.json",
+      "file": "pharmacy_receipt_starred.json",
       "ocrType": "PRESCRIPTION",
       "guard": true,
-      "note": "유성온누리약국 영수증 (별표형, 좌표 없음) - 현재 정상 동작, 회귀 가드",
+      "note": "약제비 영수증 (별표형 약 이름, 좌표 없음, 개인정보 익명화) - 현재 정상 동작, 회귀 가드",
       "expected": [
         { "drugName": "아클펜정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },
         { "drugName": "아트놀셋세미정", "dosagePerTime": "1정", "timesPerDay": 2, "totalDays": 5 },

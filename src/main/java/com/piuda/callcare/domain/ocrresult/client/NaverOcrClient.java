@@ -43,6 +43,13 @@ public class NaverOcrClient {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 이미지를 Naver OCR에 보내 인식 결과를 받는다.
+     *
+     * @param image 처방전·약봉투 이미지
+     * @return 파싱용 {@code fields}와 저장용 응답 원문 JSON
+     * @throws com.piuda.callcare.global.exception.CallCareException OCR API 오류·실패({@code OCR_API_ERROR})
+     */
     public NaverOcrCallResult callOcr(MultipartFile image) {
         try {
             String filename = Objects.requireNonNullElse(image.getOriginalFilename(), "image.jpg");

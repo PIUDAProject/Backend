@@ -20,6 +20,7 @@ public final class OcrFixtureLoader {
     private OcrFixtureLoader() {
     }
 
+    /** fixture JSON({@link NaverOcrApiResponse} 형태)을 읽어 파서 입력 필드 목록을 반환한다. */
     public static List<NaverOcrApiResponse.Field> loadFields(String fixtureFile) {
         try (InputStream in = open(FIXTURE_DIR + fixtureFile)) {
             NaverOcrApiResponse response = MAPPER.readValue(in, NaverOcrApiResponse.class);
@@ -29,6 +30,7 @@ public final class OcrFixtureLoader {
         }
     }
 
+    /** fixture 파일명 → 기대 약 목록 매핑(manifest.json)을 읽는다. */
     public static Manifest loadManifest() {
         try (InputStream in = open(MANIFEST_PATH)) {
             return MAPPER.readValue(in, Manifest.class);

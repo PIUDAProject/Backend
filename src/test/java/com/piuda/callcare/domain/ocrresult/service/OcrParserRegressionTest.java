@@ -53,10 +53,10 @@ class OcrParserRegressionTest {
     }
 
     @Test
-    @DisplayName("정상 케이스: 유성온누리약국 영수증 - 약 4건, 병원명 '중앙정'은 약으로 잡히지 않는다")
-    void 유성온누리_영수증_약4건_병원명오탐없음() {
+    @DisplayName("정상 케이스: 별표형 영수증 - 약 4건, 병원명 '튼튼정'은 약으로 잡히지 않는다")
+    void 별표형_영수증_약4건_병원명오탐없음() {
         // Given
-        List<NaverOcrApiResponse.Field> fields = OcrFixtureLoader.loadFields("pharmacy_receipt_yuseong.json");
+        List<NaverOcrApiResponse.Field> fields = OcrFixtureLoader.loadFields("pharmacy_receipt_starred.json");
 
         // When
         List<ParsedOcrData> drugs = ocrParser.parse(fields, OcrType.PRESCRIPTION).parsedDrugs();
@@ -65,7 +65,7 @@ class OcrParserRegressionTest {
         assertThat(drugs).hasSize(4);
         assertThat(drugs).extracting(ParsedOcrData::drugName)
                 .containsExactly("아클펜정", "아트놀셋세미정", "모사피트정", "에페신정")
-                .doesNotContain("중앙정");
+                .doesNotContain("튼튼정");
         assertThat(drugs).allSatisfy(d -> {
             assertThat(d.dosagePerTime()).isEqualTo("1정");
             assertThat(d.timesPerDay()).isEqualTo(2);

@@ -36,7 +36,8 @@ public class OcrResult {
     @Column(name = "raw_text", columnDefinition = "TEXT")
     private String rawText; // OCR로 추출된 원본 텍스트
 
-    @Column(name = "raw_response", columnDefinition = "TEXT")
+    // MEDIUMTEXT(16MB): 표 처방전 응답은 토큰마다 좌표가 붙어 TEXT(64KB)를 넘길 수 있음
+    @Column(name = "raw_response", columnDefinition = "MEDIUMTEXT")
     private String rawResponse; // Naver OCR 응답 원문 JSON (좌표 포함, 실패 재현·회귀 테스트용)
 
     @Column(name = "parsed_drug_name")

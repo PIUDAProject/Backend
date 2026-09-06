@@ -1,6 +1,6 @@
 {
   "version": "V2",
-  "requestId": "fixture-yuseong",
+  "requestId": "fixture-starred-receipt",
   "timestamp": 0,
   "images": [
     {
@@ -23,35 +23,35 @@
           }
         },
         {
-          "inferText": "조제약사: 박도현",
+          "inferText": "조제약사: 김조제",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "조제일자: 2026-06-27",
+          "inferText": "조제일자: 2025-01-02",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "환 자 성 명: 강철웅(만 24세/남)",
+          "inferText": "환 자 성 명: 홍길동(만 65세/남)",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "처방전교부번호: 20260627-01019",
+          "inferText": "처방전교부번호: 20250101-00001",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "처방전발행기관: 중앙정형외과의원",
+          "inferText": "처방전발행기관: 튼튼정형외과의원",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -93,21 +93,21 @@
           }
         },
         {
-          "inferText": "2026-06-27",
+          "inferText": "2025-01-02",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "20260627-0047",
+          "inferText": "20250101-0001",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "강철웅",
+          "inferText": "홍길동",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -142,7 +142,7 @@
           }
         },
         {
-          "inferText": "복약만료일 2026",
+          "inferText": "복약만료일 2025",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -632,7 +632,7 @@
           }
         },
         {
-          "inferText": "101-13-65757",
+          "inferText": "000-00-00000",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -646,14 +646,14 @@
           }
         },
         {
-          "inferText": "경기도 시흥시 도일로",
+          "inferText": "서울특별시 종로구 세종대로",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
           }
         },
         {
-          "inferText": "124번길 2, 102호",
+          "inferText": "1, 1호",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -667,7 +667,7 @@
           }
         },
         {
-          "inferText": "유성온누리약국",
+          "inferText": "행복약국",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -681,7 +681,7 @@
           }
         },
         {
-          "inferText": "김미희",
+          "inferText": "이약사",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []
@@ -695,7 +695,7 @@
           }
         },
         {
-          "inferText": "2026-06-27",
+          "inferText": "2025-01-02",
           "lineBreak": true,
           "boundingPoly": {
             "vertices": []

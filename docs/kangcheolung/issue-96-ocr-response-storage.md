@@ -40,17 +40,19 @@ webClient.post()...bodyToMono(String.class)      ← 원문 문자열
 - 응답 원문을 재직렬화가 아니라 **문자열 그대로** 저장하는 이유: Naver의 `inferConfidence` 등
   우리 DTO에 없는 필드까지 보존해 회귀 코퍼스의 충실도를 유지.
 
-`OcrResult` — `raw_response` TEXT 컬럼 + 빌더 파라미터. `ddl-auto: update`라 마이그레이션 파일 불필요.
+`OcrResult` — `raw_response` `MEDIUMTEXT` 컬럼 + 빌더 파라미터. `ddl-auto: update`라 마이그레이션 파일 불필요.
+MySQL `TEXT`는 64KB라, 좌표가 붙는 표 처방전 응답(WebClient 한도 10MB)을 담으려면 `MEDIUMTEXT`(16MB)가 필요하다.
 
 ### 2-2. 주민번호 마스킹
 
 신규 `global/util/PiiMasker` — 주민번호만 대상.
 
 ```java
-// 6자리 - 7자리, 뒷자리 첫 숫자 1~8 (공백 허용)
-Pattern.compile("\\d{6}\\s*-\\s*[1-8]\\d{6}")  →  "******-*******"
+// 6자리 [-] 7자리, 뒷자리 첫 숫자 1~8. 하이픈 선택적, 앞뒤 숫자 경계로 부분 일치 방지
+Pattern.compile("(?<!\\d)\\d{6}\\s*-?\\s*[1-8]\\d{6}(?!\\d)")  →  "******-*******"
 ```
 
+- 하이픈은 OCR이 놓치는 경우가 있어 선택적(`-?`). `(?<!\d)`/`(?!\d)`로 더 긴 숫자열 내부 부분 마스킹을 막는다.
 - 형식이 고정이라 정규식으로 안전하게 잡힌다. 교부번호(`20260701-00042`, 뒤 5자리)는 패턴 불일치라 유지.
 - 이름·생년월일은 형식이 없어 자동 식별이 어렵고, 저장 허용 범위(팀 합의)라 건드리지 않는다.
 - `OcrCommandService`에서 `raw_text`·`raw_response` 둘 다 저장 직전에 통과.
@@ -72,7 +74,7 @@ Pattern.compile("\\d{6}\\s*-\\s*[1-8]\\d{6}")  →  "******-*******"
 
 | 파일 | 출처 | 좌표 | 용도 |
 |---|---|---|---|
-| `pharmacy_receipt_yuseong.json` | 실제 유성온누리약국 영수증 (별표형) | 없음 | 현재 정상 — 회귀 가드 |
+| `pharmacy_receipt_starred.json` | 약제비 영수증 (별표형 약 이름, 개인정보 익명화) | 없음 | 현재 정상 — 회귀 가드 |
 | `table_prescription_synth.json` | 합성 표 처방전. 헤더 `처방 의약품의`+`명칭` 분리를 의도적으로 재현 | 있음 | 이슈 B 대상 |
 
 실제 약봉투·처방전 fixture는 팀이 사진에서 뽑아 이름 마스킹 후 추가한다.
@@ -82,8 +84,8 @@ Pattern.compile("\\d{6}\\s*-\\s*[1-8]\\d{6}")  →  "******-*******"
 ## 3. 측정 (baseline)
 
 ```
-[pharmacy_receipt_yuseong.json]  exact P=1.00 R=1.00 | name R=1.00 | 기대 4, 추출 4, 정확일치 4
-  ↳ 유성온누리약국 영수증 (별표형, 좌표 없음) - 현재 정상 동작, 회귀 가드
+[pharmacy_receipt_starred.json]  exact P=1.00 R=1.00 | name R=1.00 | 기대 4, 추출 4, 정확일치 4
+  ↳ 약제비 영수증 (별표형, 좌표 없음) - 현재 정상 동작, 회귀 가드
 [table_prescription_synth.json]  exact P=0.00 R=0.00 | name R=0.20 | 기대 5, 추출 1, 정확일치 0
   ↳ 합성 표 처방전 (좌표 포함) - 이슈 B 대상, 현재 미달
 ```

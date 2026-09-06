@@ -212,10 +212,10 @@ public class OcrParser {
             .count();
         if (emptyCount * 2 >= result.size()) {
             List<ParsedOcrData> grouped = parseGroupedTrailingNumbers(rawText, names, starts);
-            if (grouped != null) return grouped;
+            if (grouped != null) return dedupeByName(grouped);
         }
 
-        return result;
+        return dedupeByName(result);
     }
 
     // ⚡ 신규: *약이름 *약이름 *약이름 \n 1 3 3 1 3 3 1 3 3 형태 파싱
@@ -314,7 +314,7 @@ public class OcrParser {
             result.add(new ParsedOcrData(names.get(i), dosage, extractTimesPerDay(block), extractTotalDays(block)));
         }
 
-        return result.isEmpty() ? List.of(parseByRegex(rawText)) : result;
+        return result.isEmpty() ? List.of(parseByRegex(rawText)) : dedupeByName(result);
     }
 
     // ── 표 처방전 감지 ────────────────────────────────────────────────────────
@@ -371,16 +371,18 @@ public class OcrParser {
             String drugName = refineDrugName(rawName);
             if (drugName == null) continue;
 
-            String dosageRaw = cells.get(ColumnKind.DOSAGE);
+            // ⚡ 수정: 숫자로 시작하지 않는 셀(주의사항 텍스트 등)은 값으로 인정하지 않음
+            String dosageRaw = numericCell(cells.get(ColumnKind.DOSAGE));
             String unit = inferDosageUnit(drugName);
             String dosage = dosageRaw != null
                 ? (dosageRaw.matches("\\d+(?:\\.\\d+)?") && unit != null ? dosageRaw + unit : dosageRaw)
                 : null;
-            Integer times = parseIntOrNull(cells.get(ColumnKind.TIMES));
-            Integer days  = parseIntOrNull(cells.get(ColumnKind.DAYS));
+            Integer times = parseIntOrNull(numericCell(cells.get(ColumnKind.TIMES)));
+            Integer days  = parseIntOrNull(numericCell(cells.get(ColumnKind.DAYS)));
 
             result.add(new ParsedOcrData(drugName, dosage, times, days));
         }
+        result = dedupeByName(result);
 
         return result.isEmpty() ? List.of(parseByRegex(buildRawText(fields))) : result;
     }
@@ -533,6 +535,28 @@ public class OcrParser {
     private Integer parseIntOrNull(String s) {
         if (s == null) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
+    }
+
+    // 숫자로 시작하는 셀만 값으로 통과 (표의 빈 칸에 주의사항/용법 텍스트가 들어오는 경우 방지)
+    private String numericCell(String s) {
+        return (s != null && s.matches("\\d.*")) ? s : null;
+    }
+
+    // 같은 약 이름이 두 번 이상 나오면(영수증의 상세+요약 섹션) 하나로 합친다.
+    // 값이 있는 항목을 우선 유지한다.
+    private List<ParsedOcrData> dedupeByName(List<ParsedOcrData> drugs) {
+        LinkedHashMap<String, ParsedOcrData> byName = new LinkedHashMap<>();
+        for (ParsedOcrData d : drugs) {
+            ParsedOcrData prev = byName.get(d.drugName());
+            if (prev == null || (isEmpty(prev) && !isEmpty(d))) {
+                byName.put(d.drugName(), d);
+            }
+        }
+        return new ArrayList<>(byName.values());
+    }
+
+    private boolean isEmpty(ParsedOcrData d) {
+        return d.dosagePerTime() == null && d.timesPerDay() == null && d.totalDays() == null;
     }
 
     private record FieldWithCenter(NaverOcrApiResponse.Field field, double x, double y) {}

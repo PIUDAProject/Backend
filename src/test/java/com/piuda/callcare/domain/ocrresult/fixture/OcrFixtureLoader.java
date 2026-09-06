@@ -1,5 +1,6 @@
 package com.piuda.callcare.domain.ocrresult.fixture;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.piuda.callcare.domain.ocrresult.dto.ParsedOcrData;
 import com.piuda.callcare.domain.ocrresult.dto.response.NaverOcrApiResponse;
@@ -13,11 +14,18 @@ import java.util.List;
  */
 public final class OcrFixtureLoader {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    // 실제 Naver 응답 dump에는 우리 DTO에 없는 필드(inferConfidence, message 등)가 있어 무시한다
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final String FIXTURE_DIR = "/ocr/fixtures/";
     private static final String MANIFEST_PATH = "/ocr/expected/manifest.json";
 
     private OcrFixtureLoader() {
+    }
+
+    /** fixture 파일이 클래스패스에 있는지 확인한다. */
+    public static boolean exists(String fixtureFile) {
+        return OcrFixtureLoader.class.getResource(FIXTURE_DIR + fixtureFile) != null;
     }
 
     /** fixture JSON({@link NaverOcrApiResponse} 형태)을 읽어 파서 입력 필드 목록을 반환한다. */
